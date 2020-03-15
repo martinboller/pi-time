@@ -641,70 +641,6 @@ configure_user_pi() {
     sudo usermod pi --lock;
 }
 
-install_alerta() {
-    export DEBIAN_FRONTEND=noninteractive;
-    apt-get -y install python3-pip python3-venv;
-    id alerta || (groupadd alerta && useradd -g alerta alerta);
-    cd /opt;
-    python3 -m venv alerta;
-    /opt/alerta/bin/pip install --upgrade pip wheel;
-    /opt/alerta/bin/pip install alerta;
-    mkdir /home/alerta/;
-    chown -R alerta:alerta /home/alerta;
-}
-
-configure_heartbeat() {
-    echo "Configure Heartbeat Alerts on Alerta Server";
-    export DEBIAN_FRONTEND=noninteractive;
-    id alerta || (groupadd alerta && useradd -g alerta alerta);
-    mkdir /home/alerta/;
-    chown -R alerta:alerta /home/alerta;
-    # Create Alerta configuration file
-    sudo sh -c "cat << EOF  >  /home/alerta/.alerta.conf
-[DEFAULT]
-endpoint = http://cetus.bollers.dk/api
-key = 6EWMlJ0IiLz7ZPlLFK0nHQYN-LfL2sR3PABbwBAT
-EOF";
-
-    # Create  Service
-    sudo sh -c "cat << EOF  >  /lib/systemd/system/alerta-heartbeat.service
-[Unit]
-Description=Alerta Heartbeat service
-Documentation=https://http://docs.alerta.io/en/latest/deployment.html#house-keeping
-Wants=network-online.target
-
-[Service]
-User=alerta
-Group=alerta
-ExecStart=-/opt/alerta/bin/alerta --config-file /home/alerta/.alerta.conf heartbeat --timeout 120
-#Restart=always
-WorkingDirectory=/home/alerta
-
-[Install]
-WantedBy=multi-user.target
-EOF";
-
-   sudo sh -c "cat << EOF  >  /lib/systemd/system/alerta-heartbeat.timer
-[Unit]
-Description=sends heartbeats to alerta every 60 seconds
-Documentation=https://http://docs.alerta.io/en/latest/deployment.html#house-keeping
-Wants=network-online.target
-
-[Timer]
-OnUnitActiveSec=60s
-Unit=alerta-heartbeat.service
-
-[Install]
-WantedBy=multi-user.target
-EOF";
-    systemctl daemon-reload;
-    systemctl enable alerta-heartbeat.timer;
-    systemctl enable alerta-heartbeat.service;
-    systemctl start alerta-heartbeat.timer;
-    systemctl start alerta-heartbeat.service;
-    /usr/bin/logger 'Configured heartbeat service' -t 'Alerta Server)';
-}
-
 
 #################################################################################################################
 ## Main Routine                                                                                                 #
@@ -747,10 +683,6 @@ configure_sshd;
 configure_iptables;
 
 configure_motd;
-
-# If using alerta.io install alerta and send heartbeats to alertaserver
-install_alerta;
-configure_heartbeat;
 
 #if RTC HWCLOCK installed
 #install_hwclock;
@@ -809,6 +741,6 @@ exit 0
 # i2cdetect -y 1
 #
 # Update system
-# export DEBIAN_FRONTEND=noninteractive; apt update; apt dist-upgrade -y; echo y | rpi-update;
+# export DEBIAN_FRONTEND=noninteractive; apt update; apt dist-upgrade -y;
 #
 #################################################################################################

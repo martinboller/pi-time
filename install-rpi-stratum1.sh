@@ -55,6 +55,7 @@ install_updates() {
     echo -e "\e[32minstall_updates()\e[0m";
     export DEBIAN_FRONTEND=noninteractive;
     sudo sync \
+    && echo -e "\e[36m-update...\e[0m" && sudo apt-get -y purge bluez \
     && echo -e "\e[36m-update...\e[0m" && sudo apt-get update \
     && echo -e "\e[36m-upgrade...\e[0m" && sudo apt-get -y upgrade \
     && echo -e "\e[36m-dist-upgrade...\e[0m" && sudo apt-get -y dist-upgrade \
@@ -488,9 +489,9 @@ configure_motd() {
 ***                                     ***
 ***     Version 3.53 May 2019           ***
 ***                                     ***
-***********************||******************
-             (\__/)    ||
-             (•ㅅ•)    ||
+********************||*********************
+             (\__/) ||
+             (•ㅅ•) ||
             /  　  づ
 EOF";
     
@@ -727,8 +728,13 @@ exit 0
 # ipcs -m
 # ntpshmmon
 #
+# using the ntp daemon
 # ntpq -crv -pn
 # watch -n 10 'ntpstat; ntpq -p -crv; ntptime;'
+# watch -n 10 'hostname -s; echo -----------; ntpstat; ntpq -p -crv; ntptime;'
+#
+# Using Chrony
+# watch -n5 'hostname -s; echo --------; chronyc sources -v; chronyc tracking;'
 #
 # If HW clock installed
 # dmesg | grep rtc

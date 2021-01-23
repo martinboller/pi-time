@@ -5,15 +5,13 @@
 # Author:       Martin Boller                                       #
 #                                                                   #
 # Email:        martin@bollers.dk                                   #
-# Last Update:  2020-03-15                                          #
-# Version:      3.55                                                #
+# Last Update:  2021-01-23                                          #
+# Version:      3.56                                                #
 #                                                                   #
 # Changes:  Tested on Debian 10 (Buster)                            #
+#           Minor updates+tested w. Jan 2021 Raspberrypi OS (3.56)  #
 #           Cleaned update-leap service (3.54)                      #
 #           Changed IPTABLES config (3.53)                          #
-#           Cleanup of naming (3.52)                                #
-#           Added logging (3.5 and 3.51)                            #
-#           HWCLOCK (3.4)                                           #
 #                                                                   #
 #####################################################################
 
@@ -61,7 +59,6 @@ install_updates() {
     && echo -e "\e[36m-dist-upgrade...\e[0m" && sudo apt-get -y dist-upgrade \
     && echo -e "\e[36m-autoremove...\e[0m" && sudo apt-get -y --purge autoremove \
     && echo -e "\e[36m-autoclean...\e[0m" && sudo apt-get autoclean \
-    && echo -e "\e[36m-rpi-update...\e[0m" && echo y | sudo rpi-update \
     && echo -e "\e[36m-Done.\e[0m" \
     && sudo sync;
     /usr/bin/logger 'install_updates()' -t 'Stratum1 NTP Server';
@@ -148,7 +145,7 @@ configure_pps() {
     echo -e "\e[36m-Install PPS tools\e[0m";
     sudo apt-get -y install pps-tools;
 
-    ## create config.txt in boot also for RPI3
+    ## create config.txt in boot also for RPI3 or 4
     grep -q pps-gpio /boot/config.txt 2> /dev/null || {
         echo -e "\e[36m-setup config.txt for PPS\e[0m";
         sudo sh -c "cat << EOF  > /boot/config.txt

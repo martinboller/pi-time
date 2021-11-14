@@ -8,7 +8,7 @@
 # Last Update:  2021-11-14                                          #
 # Version:      4.00                                                #
 #                                                                   #
-# Changes:  Tested on Debian 10 (Buster)                            #
+# Changes:  Tested on Debian 11 (Bullseye)                          #
 #           Minor updates+tested w. Jan 2021 Raspberrypi OS (3.56)  #
 #           Cleaned update-leap service (3.54)                      #
 #           Changed IPTABLES config (3.53)                          #

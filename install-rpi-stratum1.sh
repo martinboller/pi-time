@@ -20,7 +20,6 @@
 configure_serial() {
     echo -e "\e[32mconfigure_serial()\e[0m";
     systemctl stop serial-getty@ttyAMA0.service;
-    systemctl daemon-reload;
     systemctl disable serial-getty@ttyAMA0.service;
     sed -i -e "s/console=serial0,115200//" /boot/cmdline.txt;
     /usr/bin/logger 'configure_serial()' -t 'Stratum1 NTP Server';
@@ -84,7 +83,6 @@ USBAUTO="false"
 GPSD_SOCKET="/var/run/gpsd.sock"
 __EOF__
     sync;
-    systemctl daemon-reload;
     systemctl restart gpsd.service;
     systemctl restart gpsd.socket;
     rm -f /etc/dhcp/dhclient-exit-hooks.d/ntp;
@@ -299,12 +297,13 @@ restrict ::1
 leapfile /var/lib/ntp/leap-seconds.list
 __EOF__
 
-    # Create folder for logfiles and let ntp own it
-    echo -e "\e[36m-Create folder for logfiles and let ntp own it\e[0m";
-    mkdir /var/log/ntpd
+    # Create directory for logfiles and let ntp own it
+    echo -e "\e[36m-Create directory for logfiles and let ntp own it\e[0m";
+    mkdir -p /var/log/ntpd
     chown ntp /var/log/ntpd
     sync;    
     ## Restart NTPD
+    systemctl daemon-reload;
     systemctl restart ntp.service;
     /usr/bin/logger 'configure_ntp()' -t 'Stratum1 NTP Server';
 }
@@ -353,11 +352,9 @@ __EOF__
 
     sync;
     echo -e "\e[36m-Get initial leap file and making sure timer and service can run\e[0m";
-    wget -O /var/lib/ntp/leap-seconds.list http://www.ietf.org/timezones/data/leap-seconds.list;
     systemctl daemon-reload;
     systemctl enable update-leap.timer;
     systemctl enable update-leap.service;
-    systemctl daemon-reload;
     systemctl start update-leap.timer;
     systemctl start update-leap.service;
     /usr/bin/logger 'configure_update-leap()' -t 'Stratum1 NTP Server';
@@ -470,7 +467,6 @@ configure_sshd() {
 disable_timesyncd() {
     echo -e "\e[32mDisable_timesyncd()\e[0m";
     systemctl stop systemd-timesyncd
-    systemctl daemon-reload
     systemctl disable systemd-timesyncd
     /usr/bin/logger 'disable_timesyncd()' -t 'Stratum1 NTP Server';
 }
@@ -483,7 +479,7 @@ configure_dhcp() {
     rm /etc/dhcp/dhclient-exit-hooks.d/timesyncd
     ## Remove ntp.conf.dhcp if it exist
     echo -e "\e[36m-Removing ntp.conf.dhcp\e[0m";    
-    rm /run/ntp.conf.dhcp
+    rm -f /run/ntp.conf.dhcp
     ## Disable NTP option for dhcp
     echo -e "\e[36m-Disable ntp_servers option from dhclient\e[0m";   
     sed -i -e "s/option ntp_servers/#option ntp_servers/" /etc/dhcpcd.conf;
@@ -505,7 +501,6 @@ install_hwclock() {
     update-rc.d -f fake-hwclock remove
     rm /etc/init.d/fake-hwclock
     systemctl stop fake-hwclock.service
-    systemctl daemon-reload 
     systemctl disable fake-hwclock.service
     echo -e "\e[36m-Enable HWCLOCK\e[0m";
     update-rc.d hwclock.sh enable;

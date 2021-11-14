@@ -4,24 +4,25 @@
 #                                                                   #
 # Author:       Martin Boller                                       #
 #                                                                   #
-# Email:        martin@bollers.dk      a                             #
-# Last Update:  2021-01-23                                          #
-# Version:      3.56                                                #
+# Email:        martin@bollers.dk                                   #
+# Last Update:  2021-11-14                                          #
+# Version:      4.00                                                #
 #                                                                   #
 # Changes:  Tested on Debian 10 (Buster)                            #
 #           Minor updates+tested w. Jan 2021 Raspberrypi OS (3.56)  #
 #           Cleaned update-leap service (3.54)                      #
 #           Changed IPTABLES config (3.53)                          #
+#           Optimized for Debian 11 (Bullseye) (4.00)               #
 #                                                                   #
 #####################################################################
 
 # Ensure the GPIO-serial port is not in use
 configure_serial() {
     echo -e "\e[32mconfigure_serial()\e[0m";
-    sudo systemctl stop serial-getty@ttyAMA0.service;
-    sudo systemctl daemon-reload;
-    sudo systemctl disable serial-getty@ttyAMA0.service;
-    sudo sed -i -e "s/console=serial0,115200//" /boot/cmdline.txt;
+    systemctl stop serial-getty@ttyAMA0.service;
+    systemctl daemon-reload;
+    systemctl disable serial-getty@ttyAMA0.service;
+    sed -i -e "s/console=serial0,115200//" /boot/cmdline.txt;
     /usr/bin/logger 'configure_serial()' -t 'Stratum1 NTP Server';
 }
 
@@ -30,12 +31,12 @@ configure_locale() {
     echo -e "\e[36m-Configure locale (default:C.UTF-8)\e[0m";
     export DEBIAN_FRONTEND=noninteractive;
     update-locale LANG=en_GB.utf8;
-    sudo sh -c "cat << EOF  > /etc/default/locale
+    cat << __EOF__  > /etc/default/locale
 # /etc/default/locale
 LANG=C.UTF-8
 LANGUAGE=C.UTF-8
 LC_ALL=C.UTF-8
-EOF";
+__EOF__
     /usr/bin/logger 'configure_locale()' -t 'Stratum1 NTP Server';
 }
 
@@ -43,24 +44,23 @@ configure_timezone() {
     echo -e "\e[32mconfigure_timezone()\e[0m";
     echo -e "\e[36m-Set timezone to Etc/UTC\e[0m";
     export DEBIAN_FRONTEND=noninteractive;
-    sudo rm /etc/localtime
-    sudo sh -c "echo 'Etc/UTC' > /etc/timezone";
-    sudo dpkg-reconfigure -f noninteractive tzdata;
+    rm /etc/localtime
+    echo 'Etc/UTC' > /etc/timezone;
+    dpkg-reconfigure -f noninteractive tzdata;
     /usr/bin/logger 'configure_timezone()' -t 'Stratum1 NTP Server';
 }
 
 install_updates() {
     echo -e "\e[32minstall_updates()\e[0m";
     export DEBIAN_FRONTEND=noninteractive;
-    sudo sync \
-    && echo -e "\e[36m-update...\e[0m" && sudo apt-get -y purge bluez \
-    && echo -e "\e[36m-update...\e[0m" && sudo apt-get update \
-    && echo -e "\e[36m-upgrade...\e[0m" && sudo apt-get -y upgrade \
-    && echo -e "\e[36m-dist-upgrade...\e[0m" && sudo apt-get -y dist-upgrade \
-    && echo -e "\e[36m-autoremove...\e[0m" && sudo apt-get -y --purge autoremove \
-    && echo -e "\e[36m-autoclean...\e[0m" && sudo apt-get autoclean \
+    sync \
+    && echo -e "\e[36m-remove bluez...\e[0m" && apt-get -y purge bluez \
+    && echo -e "\e[36m-update...\e[0m" && apt-get update \
+    && echo -e "\e[36m-full-upgrade...\e[0m" && apt-get -y full-upgrade \
+    && echo -e "\e[36m-autoremove...\e[0m" && apt-get -y --purge autoremove \
+    && echo -e "\e[36m-autoclean...\e[0m" && apt-get autoclean \
     && echo -e "\e[36m-Done.\e[0m" \
-    && sudo sync;
+    && sync;
     /usr/bin/logger 'install_updates()' -t 'Stratum1 NTP Server';
 }
 
@@ -69,72 +69,31 @@ configure_gps() {
     ## Install gpsd
     export DEBIAN_FRONTEND=noninteractive;
     echo -e "\e[36m-Install gpsd\e[0m";
-    sudo apt-get -y install gpsd gpsd-clients;
+    apt-get -y install gpsd gpsd-clients;
     ## Setup GPSD
     echo -e "\e[36m-Setup gpsd\e[0m";
-    sudo systemctl stop gpsd.socket;
-    sudo systemctl stop gpsd.service;
-    sudo sh -c "cat << EOF  > /etc/default/gpsd
+    systemctl stop gpsd.socket;
+    systemctl stop gpsd.service;
+    cat << __EOF__  > /etc/default/gpsd
 # /etc/default/gpsd
 ## Stratum1
-START_DAEMON=\"true\"
-GPSD_OPTIONS=\"-n\"
-DEVICES=\"/dev/ttyAMA0 /dev/pps0\"
-USBAUTO=\"false\"
-GPSD_SOCKET=\"/var/run/gpsd.sock\"
-EOF";
+START_DAEMON="true"
+GPSD_OPTIONS="-n"
+DEVICES="/dev/ttyAMA0 /dev/pps0"
+USBAUTO="false"
+GPSD_SOCKET="/var/run/gpsd.sock"
+__EOF__
     sync;
-    sudo systemctl daemon-reload;
-    sudo systemctl restart gpsd.service;
-    sudo systemctl restart gpsd.socket;
-    ## Configure GPSD socket
-    grep -q Stratum1 /lib/systemd/system/gpsd.socket 2> /dev/null || {
-        echo -e "\e[36m-Ensure that gpsd listens to all connection requests\e[0m";
-        sudo sed /lib/systemd/system/gpsd.socket -i -e "s/ListenStream=127.0.0.1:2947/ListenStream=0.0.0.0:2947/";
-        sudo sh -c "cat << EOF  >> /lib/systemd/system/gpsd.socket
-;; Stratum1
-EOF";
-    }
-
-    grep -q Stratum1 /etc/rc.local 2> /dev/null || {
-        echo -e "\e[36m-Tweak GPS device at start up\e[0m";
-        sudo sed /etc/rc.local -i -e "s/^exit 0$//";
-        printf "## Stratum1
-sudo systemctl stop gpsd.socket;
-sudo systemctl stop gpsd.service;
-
-# default GPS device settings at power on
-stty -F /dev/ttyAMA0 9600
-
-## custom GPS device settings
-## 115200baud io rate,
-#printf \x27\x24PMTK251,115200*1F\x5Cr\x5Cn\x27 \x3E /dev/ttyAMA0
-#stty -F /dev/ttyAMA0 115200
-## 10 Hz update interval
-#printf \x27\x24PMTK220,100*2F\x5Cr\x5Cn\x27 \x3E /dev/ttyAMA0
-
-sudo systemctl restart gpsd.service;
-sudo systemctl restart gpsd.socket;
-
-# Force gps service to wakeup
-gpspipe -r -n 1 &
-
-exit 0
-" | sudo tee -a /etc/rc.local > /dev/null;
-    }
-
-    [ -f "/etc/dhcp/dhclient-exit-hooks.d/ntp" ] && {
-        sudo rm -f /etc/dhcp/dhclient-exit-hooks.d/ntp;
-    }
-
-    [ -f "/etc/udev/rules.d/99-gps.rules" ] || {
-        echo -e "\e[36m-create rule to create symbolic link\e[0m";
-        sudo sh -c "cat << EOF  > /etc/udev/rules.d/99-gps.rules
+    systemctl daemon-reload;
+    systemctl restart gpsd.service;
+    systemctl restart gpsd.socket;
+    rm -f /etc/dhcp/dhclient-exit-hooks.d/ntp;
+    echo -e "\e[36m-create rule for symbolic links\e[0m";
+    cat << __EOF__  > /etc/udev/rules.d/99-gps.rules
 ## Stratum1
-KERNEL==\"pps0\",SYMLINK+=\"gpspps0\"
-KERNEL==\"ttyAMA0\", SYMLINK+=\"gps0\"
-EOF";
-    }
+KERNEL=="pps0",SYMLINK+="gpspps0"
+KERNEL=="ttyAMA0", SYMLINK+="gps0"
+__EOF__
     /usr/bin/logger 'configure_gps()' -t 'Stratum1 NTP Server';
 }
 
@@ -143,52 +102,10 @@ configure_pps() {
     export DEBIAN_FRONTEND=noninteractive;
     ## Install pps tools
     echo -e "\e[36m-Install PPS tools\e[0m";
-    sudo apt-get -y install pps-tools;
-
+    apt-get -y install pps-tools;
     ## create config.txt in boot also for RPI3 or 4
-    grep -q pps-gpio /boot/config.txt 2> /dev/null || {
-        echo -e "\e[36m-setup config.txt for PPS\e[0m";
-        sudo sh -c "cat << EOF  > /boot/config.txt
-# /boot/config.txt
-# https://www.raspberrypi.org/documentation/configuration/config-txt.md
-## Stratum 1 NTP Server
-
-[all]
-max_usb_current=1
-force_turbo=1
-
-disable_overscan=1
-hdmi_force_hotplug=1
-config_hdmi_boost=4
-
-#hdmi_ignore_cec_init=1
-cec_osd_name=ntpserver
-
-#########################################
-# standard resolution
-hdmi_drive=2
-
-#########################################
-# custom resolution
-# 4k@24Hz or 25Hz custom DMT - mode
-#gpu_mem=128
-#hdmi_group=2
-#hdmi_mode=87
-#hdmi_pixel_freq_limit=400000000
-#max_framebuffer_width=3840
-#max_framebuffer_height=2160
-#
-#    #### implicit timing ####
-#    hdmi_cvt 3840 2160 24
-#    #hdmi_cvt 3840 2160 25
-#
-#    #### explicit timing ####
-#    #hdmi_ignore_edid=0xa5000080
-#    #hdmi_timings=3840 1 48 32 80 2160 1 3 5 54 0 0 0 24 0 211190000 3
-#    ##hdmi_timings=3840 1 48 32 80 2160 1 3 5 54 0 0 0 25 0 220430000 3
-#    #framebuffer_width=3840
-#    #framebuffer_height=2160
-
+    echo -e "\e[36m-setup config.txt for PPS\e[0m";
+    cat << __EOF__  >> /boot/config.txt
 # gps + pps + ntp settings
 # https://github.com/raspberrypi/firmware/tree/master/boot/overlays
 #Name:   pps-gpio
@@ -202,39 +119,54 @@ smsc95xx.turbo_mode=N
 dtoverlay=pps-gpio,gpiopin=18
 dtoverlay=pi3-miniuart-bt
 enable_uart=1
-EOF";
-    }
-
+__EOF__
     ## ensure pps-gpio module loads
-    grep -q pps-gpio /etc/modules 2> /dev/null || {
-        echo -e "\e[36m-Add pps-gpio to modules for PPS\e[0m";
-        sudo sh -c "echo 'pps-gpio' >> /etc/modules";
-    }
+    echo -e "\e[36m-Add pps-gpio to modules for PPS\e[0m";
+    echo 'pps-gpio' >> /etc/modules;
     /usr/bin/logger 'configure_pps()' -t 'Stratum1 NTP Server';
 }
 
 install_ntp_tools() {
     echo -e "\e[32minstall_ntp_tools()\e[0m";
     export DEBIAN_FRONTEND=noninteractive;
-    sudo apt-get -y install ntpstat ntpdate;
+    apt-get -y install ntpstat ntpdate;
     /usr/bin/logger 'install_ntp_tools()' -t 'Stratum1 NTP Server';
 }
 
 install_ntp() {
     echo -e "\e[32minstall_ntp()\e[0m";
     export DEBIAN_FRONTEND=noninteractive;
-    sudo apt-get -y install ntp;
+    apt-get -y install ntp;
     /usr/bin/logger 'install_ntp()' -t 'Stratum1 NTP Server';
 }
 
 configure_ntp() {
     echo -e "\e[32mconfigure_ntp()\e[0m";
     echo -e "\e[36m-Stop ntpd\e[0m";
-    sudo systemctl stop ntp.service;
+    systemctl stop ntp.service;
+
+    echo -e "\e[36m-Create new ntp.service\e[0m";
+    cat << __EOF__  > /lib/systemd/system/ntp.service
+[Unit]
+Description=Network Time Service
+Documentation=man:ntpd(8)
+After=network.target
+Requires=gpsd.socket
+Conflicts=systemd-timesyncd.service
+
+[Service]
+Type=forking
+# Debian uses a shell wrapper to process /etc/default/ntp
+# and select DHCP-provided NTP servers if available
+ExecStart=/usr/lib/ntp/ntp-systemd-wrapper
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+__EOF__
 
     echo -e "\e[36m-Create new ntp.conf\e[0m";
-
-    sudo sh -c "cat << EOF  > /etc/ntp.conf
+    cat << __EOF__  > /etc/ntp.conf
 ##################################################
 #
 # GPS / PPS Disciplined NTP Server @ stratum-1
@@ -348,23 +280,22 @@ restrict ::1
 #broadcastclient
 #leap file location
 leapfile /var/lib/ntp/leap-seconds.list
-EOF";
+__EOF__
 
     # Create folder for logfiles and let ntp own it
     echo -e "\e[36m-Create folder for logfiles and let ntp own it\e[0m";
-    sudo mkdir /var/log/ntpd
-    sudo chown ntp /var/log/ntpd
+    mkdir /var/log/ntpd
+    chown ntp /var/log/ntpd
     sync;    
     ## Restart NTPD
-    sudo systemctl restart ntp.service;
+    systemctl restart ntp.service;
     /usr/bin/logger 'configure_ntp()' -t 'Stratum1 NTP Server';
 }
 
 configure_update-leap() {
     echo -e "\e[32mconfigure_update-leap()\e[0m";
     echo -e "\e[36m-Creating service unit file\e[0m";
-
-    sudo sh -c "cat << EOF  > /lib/systemd/system/update-leap.service
+    cat << __EOF__  > /lib/systemd/system/update-leap.service
 # service file running update-leap
 # triggered by update-leap.timer
 
@@ -381,11 +312,11 @@ WorkingDirectory=/var/lib/ntp/
 
 [Install]
 WantedBy=multi-user.target
-EOF";
+__EOF__
 
    echo -e "\e[36m-creating timer unit file\e[0m";
 
-   sudo sh -c "cat << EOF  > /lib/systemd/system/update-leap.timer
+   cat << __EOF__  > /lib/systemd/system/update-leap.timer
 # runs update-leap Weekly.
 [Unit]
 Description=Weekly job to check for updated leap-seconds.list file
@@ -401,26 +332,24 @@ Unit=update-leap.service
 
 [Install]
 WantedBy=multi-user.target
-EOF";
+__EOF__
 
     sync;
     echo -e "\e[36m-Get initial leap file and making sure timer and service can run\e[0m";
     wget -O /var/lib/ntp/leap-seconds.list http://www.ietf.org/timezones/data/leap-seconds.list;
-    chmod +x /usr/local/bin/update-leap;
-    sudo /usr/local/bin/update-leap;
-    sudo systemctl daemon-reload;
-    sudo systemctl enable update-leap.timer;
-    sudo systemctl enable update-leap.service;
-    sudo systemctl daemon-reload;
-    sudo systemctl start update-leap.timer;
-    sudo systemctl start update-leap.service;
+    systemctl daemon-reload;
+    systemctl enable update-leap.timer;
+    systemctl enable update-leap.service;
+    systemctl daemon-reload;
+    systemctl start update-leap.timer;
+    systemctl start update-leap.service;
     /usr/bin/logger 'configure_update-leap()' -t 'Stratum1 NTP Server';
 }
 
 configure_iptables() {
     echo -e "\e[32mconfigure_iptables()\e[0m";
     echo -e "\e[32m-Creating iptables rules file\e[0m";
-    sudo sh -c "cat << EOF  >> /etc/network/iptables.rules
+    cat << __EOF__  >> /etc/network/iptables.rules
 ##
 ## Ruleset for Stratum-1 NTP Server
 ##
@@ -460,14 +389,14 @@ configure_iptables() {
 -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
 ## Commit everything
 COMMIT
-EOF";
+__EOF__
 
     echo -e "\e[36m-Script applying iptables rules\e[0m";
-    sudo sh -c "cat << EOF  >> /etc/network/if-up.d/firewallrules
+    cat << __EOF__  >> /etc/network/if-up.d/firewallrules
 #!/bin/sh
 iptables-restore < /etc/network/iptables.rules
 exit 0
-EOF";
+__EOF__
     sync;
     ## make the script executable
     chmod +x /etc/network/if-up.d/firewallrules
@@ -477,7 +406,7 @@ EOF";
 configure_motd() {
     echo -e "\e[32mconfigure_motd()\e[0m";
     echo -e "\e[36m-Create motd file\e[0m";
-    sudo sh -c "cat << EOF  >> /etc/motd
+    cat << __EOF__  >> /etc/motd
 
 *******************************************
 ***                                     ***
@@ -485,13 +414,13 @@ configure_motd() {
 ***    -------------------------        ***          
 ***     Raspberry Pi Timeserver         ***
 ***                                     ***
-***     Version 3.53 May 2019           ***
+***     Version 4.00 Nov 2021           ***
 ***                                     ***
 ********************||*********************
              (\__/) ||
              (•ㅅ•) ||
             /  　  づ
-EOF";
+__EOF__
     
     sync;
     /usr/bin/logger 'configure_motd()' -t 'Stratum1 NTP Server';
@@ -501,11 +430,11 @@ install_ssh_keys() {
     echo -e "\e[32minstall_ssh_keys()\e[0m";
     echo -e "\e[36m-Add public key to authorized_keys file\e[0m";
     # Echo add SSH public key for root logon - change this to your own key
-    sudo mkdir /root/.ssh
+    mkdir /root/.ssh
     # Change to valid public key below 
-    echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIHJYsxpawSLfmIAZTPWdWe2xLAH758JjNs5/Z2pPWYm" | sudo tee /root/.ssh/authorized_keys
-    sudo chmod 700 /root/.ssh
-    sudo chmod 644 /root/.ssh/authorized_keys
+    echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIHJYsxpawSLfmIAZTPWdWe2xLAH758JjNs5/Z2pPWYm" | tee /root/.ssh/authorized_keys
+    chmod 700 /root/.ssh
+    chmod 644 /root/.ssh/authorized_keys
     sync;
     /usr/bin/logger 'install_ssh_keys()' -t 'Stratum1 NTP Server';
 }
@@ -513,7 +442,7 @@ install_ssh_keys() {
 configure_sshd() {
     echo -e "\e[32mconfigure_sshd()\e[0m";
     # Disable password authN
-    echo "PasswordAuthentication no" | sudo tee -a /etc/ssh/sshd_config
+    echo "PasswordAuthentication no" | tee -a /etc/ssh/sshd_config
     ## Generate new host keys
     echo -e "\e[36m-Delete and recreate host SSH keys\e[0m";
     rm -v /etc/ssh/ssh_host_*;
@@ -523,9 +452,9 @@ configure_sshd() {
 
 disable_timesyncd() {
     echo -e "\e[32mDisable_timesyncd()\e[0m";
-    sudo systemctl stop systemd-timesyncd
-    sudo systemctl daemon-reload
-    sudo systemctl disable systemd-timesyncd
+    systemctl stop systemd-timesyncd
+    systemctl daemon-reload
+    systemctl disable systemd-timesyncd
     /usr/bin/logger 'disable_timesyncd()' -t 'Stratum1 NTP Server';
 }
 
@@ -533,16 +462,16 @@ configure_dhcp() {
     echo -e "\e[32mconfigure_dhcp()\e[0m";
     ## Remove ntp and timesyncd exit hooks to cater for server using DHCP
     echo -e "\e[36m-Remove scripts utilizing DHCP\e[0m";
-    sudo rm /etc/dhcp/dhclient-exit-hooks.d/ntp
-    sudo rm /etc/dhcp/dhclient-exit-hooks.d/timesyncd
+    rm /etc/dhcp/dhclient-exit-hooks.d/ntp
+    rm /etc/dhcp/dhclient-exit-hooks.d/timesyncd
     ## Remove ntp.conf.dhcp if it exist
     echo -e "\e[36m-Removing ntp.conf.dhcp\e[0m";    
-    sudo rm /run/ntp.conf.dhcp
+    rm /run/ntp.conf.dhcp
     ## Disable NTP option for dhcp
     echo -e "\e[36m-Disable ntp_servers option from dhclient\e[0m";   
-    sudo sed -i -e "s/option ntp_servers/#option ntp_servers/" /etc/dhcpcd.conf;
+    sed -i -e "s/option ntp_servers/#option ntp_servers/" /etc/dhcpcd.conf;
     ## restart NTPD yet again after cleaning up DHCP
-    sudo systemctl restart ntp
+    systemctl restart ntp
     /usr/bin/logger 'configure_dhcp()' -t 'Stratum1 NTP Server';
 }
 
@@ -552,25 +481,25 @@ install_hwclock() {
     echo -e "\e[32mInstall_hwclock()\e[0m";
     export DEBIAN_FRONTEND=noninteractive;
     echo -e "\e[36m-Install I2C tools\e[0m";
-    sudo apt-get -y install i2c-tools
+    apt-get -y install i2c-tools
     echo -e "\e[36m-Remove the Fake HWCLOCK\e[0m";
-    sudo apt-get -y remove fake-hwclock
-    sudo rm /etc/cron.hourly/fake-hwclock
-    sudo update-rc.d -f fake-hwclock remove
-    sudo rm /etc/init.d/fake-hwclock
-    sudo systemctl stop fake-hwclock.service
-    sudo systemctl daemon-reload 
-    sudo systemctl disable fake-hwclock.service
+    apt-get -y remove fake-hwclock
+    rm /etc/cron.hourly/fake-hwclock
+    update-rc.d -f fake-hwclock remove
+    rm /etc/init.d/fake-hwclock
+    systemctl stop fake-hwclock.service
+    systemctl daemon-reload 
+    systemctl disable fake-hwclock.service
     echo -e "\e[36m-Enable HWCLOCK\e[0m";
-    sudo update-rc.d hwclock.sh enable;
+    update-rc.d hwclock.sh enable;
    
     #add to config.txt dtoverlay=i2c-rtc,pcf8563 - change to specifc RTC chip
     echo -e "\e[36m-Add dtoverlay to config.txt\e[0m";
-    sudo sh -c "cat << EOF  >> /boot/config.txt
+    cat << __EOF__  >> /boot/config.txt
 dtoverlay=i2c-rtc,pcf8563
-EOF";
+__EOF__
     echo -e "\e[36m-Modify hwclock-set\e[0m";
-    sudo sh -c "cat << EOF  >> /lib/udev/hwclock-set
+    cat << __EOF__  >> /lib/udev/hwclock-set
 #!/bin/sh
 # Reset the System Clock to UTC if the hardware clock from which it
 # was copied by the kernel was in localtime.
@@ -609,12 +538,12 @@ fi
 # Note 'touch' may not be available in initramfs
 > /run/udev/hwclock-set
 
-EOF";
+__EOF__
 
     sync;
-    sudo dtoverlay i2c-rtc pcf8563;
-    sudo echo pcf8563 0x51 > /sys/class/i2c-adapter/i2c-1/new_device;
-    sudo hwclock --systohc --utc;
+    dtoverlay i2c-rtc pcf8563;
+    echo pcf8563 0x51 > /sys/class/i2c-adapter/i2c-1/new_device;
+    hwclock --systohc --utc;
     /usr/bin/logger 'install_hwclock()' -t 'Stratum1 NTP Server';
 }
 
@@ -627,7 +556,7 @@ finish_reboot() {
             sleep 1
             : $((secs--))
         done;
-    sudo sync;
+    sync;
     echo -e
     echo -e "\e[1;31mREBOOTING!\e[0m";
     /usr/bin/logger 'finalized installation of stratum-1 server' -t 'Stratum1 NTP Server'
@@ -635,9 +564,9 @@ finish_reboot() {
 }
 
 configure_user_pi() {
-    randompw=$(strings /dev/urandom | grep -o '[[:alnum:]]' | head -n 30 | tr -d '\n');
-    echo pi:$randompw | sudo chpasswd;
-    sudo usermod pi --lock;
+    randompw=$(strings /dev/urandom | grep -o '[[:alnum:]]' | head -n 64 | tr -d '\n');
+    echo pi:$randompw | chpasswd;
+    usermod pi --lock;
 }
 
 
@@ -713,13 +642,13 @@ exit 0
 #   a log entry for each routine called (main)
 #
 # dmesg | grep pps
-# sudo ppstest /dev/pps0
-# sudo ppswatch -a /dev/pps0
+# ppstest /dev/pps0
+# ppswatch -a /dev/pps0
 #
-# sudo gpsd -D 5 -N -n /dev/ttyAMA0 /dev/pps0 -F /var/run/gpsd.sock
-# sudo systemctl stop gpsd.*
-# sudo killall -9 gpsd
-# sudo dpkg-reconfigure -plow gpsd
+# gpsd -D 5 -N -n /dev/ttyAMA0 /dev/pps0 -F /var/run/gpsd.sock
+# systemctl stop gpsd.*
+# killall -9 gpsd
+# dpkg-reconfigure -plow gpsd
 #
 # cgps -s
 # gpsmon

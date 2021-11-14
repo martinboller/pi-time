@@ -239,16 +239,33 @@ fudge   127.127.28.2  refid SHM2  stratum 1
 # Stratum-1 Servers to sync with - pick 4 to 6 good ones from
 # http://support.ntp.org/bin/view/Servers/
 #
-# DK - Denmark
-server ntp01.algon.dk iburst
-server ntp2.sptime.se iburst
-#server 80.71.132.103 iburst
-
-# DE - Germany
-server ntp2.fau.de iburst
-server clock2.infonet.ee iburst
-server rustime01.rus.uni-stuttgart.de  iburst
-server ntp01.hoberg.ch iburst
+## Select 4 to 6 servers  from https://support.ntp.org/bin/view/Servers/StratumOneTimeServers
+## Below are some that work for Northern Europe
+## 
+server	ntp01.algon.dk	iburst
+server	ntp2.sptime.se	iburst
+server	ntp2.fau.de	iburst
+server	clock2.infonet.ee	iburst
+server	rustime01.rus.uni-stuttgart.de	iburst
+server	ntp01.hoberg.ch	iburst
+		
+#server	ntps1-0.eecsit.tu-berlin.de 	iburst
+#server	ntp01.sixtopia.net	iburst
+#server	gbg2.ntp.se 	iburst
+#server	ntp4.sptime.se	iburst
+#server	ntp.bcs2005.net 	iburst
+		
+#server	ptbtime2.ptb.de	iburst
+#server	ntps1-1.eecsit.tu-berlin.de	iburst
+#server	time.antwerpspace.be	iburst
+#server	time.esa.int	iburst
+#server	gbg1.ntp.se	iburst
+		
+#server	ntp.time.nl 	iburst
+#server	ntp1.nl.uu.net	iburst
+#server	ntp.certum.pl	iburst
+#server	ntp1.oma.be	iburst
+#server	ntp01.sixtopia.net 	iburst
 
 # Access control configuration; see /usr/share/doc/ntp-doc/html/accopt.html for
 # details.  The web page <http://support.ntp.org/bin/view/Support/AccessRestrictions>

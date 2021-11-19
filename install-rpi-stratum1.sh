@@ -560,18 +560,19 @@ __EOF__
 }
 
 finish_reboot() {
-    secs=10
+    secs=30
     echo -e;
     echo -e "\e[1;31m--------------------------------------------\e[0m";
         while [ $secs -gt 0 ]; do
-            echo -ne "Rebooting in: \e[1;31m$secs seconds\033[0K\r"
+            echo -ne "\e[1;32mRebooting in (seconds):  "
+            echo -ne "\e[1;31m$secs\033[0K\r"
             sleep 1
             : $((secs--))
         done;
     sync;
     echo -e
     echo -e "\e[1;31mREBOOTING!\e[0m";
-    /usr/bin/logger 'finalized installation of stratum-1 server' -t 'Stratum1 NTP Server'
+    /usr/bin/logger 'Rebooting!!' -t 'dradisce-2021-11-18'
     reboot;
 }
 

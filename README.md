@@ -46,11 +46,12 @@ However there's also great boards from Adafruit and others.
 
 <sup>2</sup> When configured with enable_uart=1 in /boot/config.txt. The install-script does this in *configure_pps*.
 
+### GPIO Pinout from raspberrypi.org
+<img src="./images/GPIO-Pinout-Diagram-2.png" alt="drawing" width="800"/>
+
 Below is a picture of GPS board I've used several of for exactly this purpose (lucky to buy 7 for a great price).
 
  ![alt text](./images/gps.png "GPS Ublox7")
-
-
 
 
 ## Tips and tricks for troubleshooting

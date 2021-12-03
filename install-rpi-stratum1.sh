@@ -446,7 +446,7 @@ install_ssh_keys() {
     # Echo add SSH public key for root logon - change this to your own key
     mkdir /root/.ssh
     # Change to valid public key below 
-    echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIHJYsxpawSLfmIAZTPWdWe2xLAH758JjNs5/Z2pPWYm" | tee /root/.ssh/authorized_keys
+    echo $myPublicSSHKey | tee /root/.ssh/authorized_keys
     chmod 700 /root/.ssh
     chmod 644 /root/.ssh/authorized_keys
     sync;
@@ -572,7 +572,7 @@ finish_reboot() {
     sync;
     echo -e
     echo -e "\e[1;31mREBOOTING!\e[0m";
-    /usr/bin/logger 'Rebooting!!' -t 'dradisce-2021-11-18'
+    /usr/bin/logger 'Rebooting!!' -t 'Stratum1 NTP Server'
     reboot;
 }
 
@@ -592,6 +592,10 @@ echo -e "\e[32m-----------------------------------------------------\e[0m";
 echo -e "\e[32mStarting Installation of NTP Server\e[0m";
 echo -e "\e[32m-----------------------------------------------------\e[0m";
 echo -e;
+
+# SSH Public Key - Remember to change this, or you won't be able to login after running the script.
+# Consider not running configure_user_pi until everything works.
+export myPublicSSHKey="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIHJYsxpawSLfmIAZTPWdWe2xLAH758JjNs5/Z2pPWYm"
 
 configure_serial;
 

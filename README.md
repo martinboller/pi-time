@@ -3,18 +3,20 @@ Raspberry PI Stratum 1 server
 
 # Raspberry Pi Installation script
 
-### Bash script automating the installation of a GPS / PPS Disciplined Stratum-1 Server on the Raspberry Pi 4 
+### Bash script automating the installation of a GPS / PPS Disciplined Stratum-1 Server on the Raspberry Pi 3 or 4 
 
 ### Design principles:
   - Dedicated to being a Stratum-1 NTP server
-  - Uses a GPS Breakout board
+  - Use a GPS Breakout board
 
 ### Known issues:
-  None so far
+  - None so far
+  - Should work on a Pi Zero, but as these have no ethernet cable, and NTP over wireless is less than optimal it's untested
+  - May work on a Raspberry Pi 2, haven't tried.
 
 ### Latest changes 
 #### 2021-12-02 - Bullseye version
-  Version 4.00 now for Debian 11 (Bullseye)
+  - Version 4.00 now for Debian 11 (Bullseye)
 
 
 ### Installation

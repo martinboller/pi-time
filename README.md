@@ -27,6 +27,7 @@ Prerequisite: A Raspberry PI 3 or 4
  - run ./install-rpi-stratum1.sh
  - Watch install progress on the tty, and from another SSH session, run *tail -fn1000 /var/log/syslog | grep 'Stratum1 NTP Server'*
  - After reboot the Pi should now provide good time, however give it time :) lots of time to achieve good precision
+
 <sup>1</sup> prep_sd.sh prepares the SD-Card enabling SSH, copies the install script, and changes hostname on the sd-card
 
 ### Hardware
@@ -54,6 +55,8 @@ Below is a picture of GPS board I've used several of for exactly this purpose (l
 
 ## Tips and tricks for troubleshooting
 Check syslog for 'finalized installation of stratum-1 server', then at least the script finished, but there should also be a log entry for each routine called (main)
+### Follow the log during installation
+- tail -fn1000 /var/log/syslog | grep 'Stratum1 NTP Server'
 ### Verify pps
 - dmesg | grep pps
 - ppstest /dev/pps0

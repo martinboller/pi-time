@@ -117,6 +117,11 @@ smsc95xx.turbo_mode=N
 dtoverlay=pps-gpio,gpiopin=18
 dtoverlay=pi3-miniuart-bt
 enable_uart=1
+
+## Constant CPU Speed kept at 800 for better precision
+## Normal governor=ondemand so btw 600 and 1200
+force_turbo=1
+arm_freq=1000
 __EOF__
     ## ensure pps-gpio module loads
     echo -e "\e[36m-Add pps-gpio to modules for PPS\e[0m";
@@ -149,7 +154,7 @@ configure_ntp() {
 Description=Network Time Service
 Documentation=man:ntpd(8)
 After=network.target
-Requires=gpsd.socket
+Requires=gpsd.service
 Conflicts=systemd-timesyncd.service
 
 [Service]

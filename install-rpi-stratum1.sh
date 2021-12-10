@@ -104,6 +104,11 @@ configure_pps() {
     ## create config.txt in boot also for RPI3 or 4
     echo -e "\e[36m-setup config.txt for PPS\e[0m";
     cat << __EOF__  >> /boot/config.txt
+## Include ntp server specific settings to config.txt using include
+include ntpserver.txt
+__EOF__
+
+    cat << __EOF__  > /boot/ntpserver.txt
 # gps + pps + ntp settings
 # https://github.com/raspberrypi/firmware/tree/master/boot/overlays
 #Name:   pps-gpio
@@ -512,7 +517,7 @@ install_hwclock() {
    
     #add to config.txt dtoverlay=i2c-rtc,pcf8563 - change to specifc RTC chip
     echo -e "\e[36m-Add dtoverlay to config.txt\e[0m";
-    cat << __EOF__  >> /boot/config.txt
+    cat << __EOF__  >> /boot/ntpserver.txt
 dtoverlay=i2c-rtc,pcf8563
 __EOF__
     echo -e "\e[36m-Modify hwclock-set\e[0m";

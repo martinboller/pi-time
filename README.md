@@ -17,8 +17,11 @@ Raspberry PI Stratum 1 server
 ### Latest changes 
 #### 2021-12-02 - Bullseye version
   - Version 4.00 now for Debian 11 (Bullseye)
-#### 2021-12-05 - Bullseye version
+#### 2021-12-05 - 1GHz
   - Pinned clock frequency at 1GHz - seems to give best precision, anything below that is -19 instead of -20 at 1GHz
+
+#### 2021-12-10 - config.txt include ntpserver.txt
+  - Keeping the original config.txt, only adding include ntpserver.txt
 
 ### Installation
 Prerequisite: A Raspberry PI 3 or 4

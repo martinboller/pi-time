@@ -239,10 +239,10 @@ fudge   127.127.28.0  refid SHM0 stratum 5 flag1 1  time1 0.1387804
 # flag3 0 | 1:    Not used by this driver.
 # flag4 0 | 1:    If flag4 is set, clockstats records will be written when the driver is polled.
 
-# Driver 28 Unit 2; SHM(2), gpsd: PPS data from shared memory provided by gpsd
+# Driver 28 Unit 1; SHM(1), gpsd: PPS data from shared memory provided by gpsd
 # http://doc.ntp.org/current-stable/drivers/driver28.html
-server  127.127.28.2  minpoll 3  maxpoll 3  true
-fudge   127.127.28.2  refid SHM2  stratum 1
+server  127.127.28.1  minpoll 3  maxpoll 3  true
+fudge   127.127.28.1  refid SHM1  stratum 1
 
 # Stratum-1 Servers to sync with - pick 4 to 6 good ones from
 # http://support.ntp.org/bin/view/Servers/

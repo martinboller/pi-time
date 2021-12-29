@@ -123,8 +123,8 @@ dtoverlay=pps-gpio,gpiopin=18
 dtoverlay=pi3-miniuart-bt
 enable_uart=1
 
-## Constant CPU Speed kept at 800 for better precision
-## Normal governor=ondemand so btw 600 and 1200
+## Constant CPU Speed kept at 1000 for better precision
+## Normal governor=ondemand so between 600 and 1200 on RPi4
 force_turbo=1
 arm_freq=1000
 __EOF__
@@ -310,7 +310,7 @@ __EOF__
     # Create directory for logfiles and let ntp own it
     echo -e "\e[36m-Create directory for logfiles and let ntp own it\e[0m";
     mkdir -p /var/log/ntpd
-    chown ntp /var/log/ntpd
+    chown ntp:ntp /var/log/ntpd
     sync;    
     ## Restart NTPD
     systemctl daemon-reload;
@@ -333,7 +333,6 @@ Documentation=man:update-leap
 User=ntp
 Group=ntp
 ExecStart=-/usr/bin/wget -O /var/lib/ntp/leap-seconds.list https://www.ietf.org/timezones/data/leap-seconds.list
-#ExecStart=-/usr/bin/update-leap -F -f /etc/ntp.conf -s http://www.ietf.org/timezones/data/leap-seconds.list /var/lib/ntp/leap-seconds.list
 WorkingDirectory=/var/lib/ntp/
 
 [Install]
@@ -373,6 +372,9 @@ __EOF__
 configure_iptables() {
     echo -e "\e[32mconfigure_iptables()\e[0m";
     echo -e "\e[32m-Creating iptables rules file\e[0m";
+    # Bullseye does not have iptables by default, so installing
+    # until converted to nftables
+    apt-get -y install iptables;
     cat << __EOF__  >> /etc/network/iptables.rules
 ##
 ## Ruleset for Stratum-1 NTP Server
@@ -598,14 +600,14 @@ configure_user_pi() {
 #################################################################################################################
 main() {
 
+# SSH Public Key - Remember to change this, or you won't be able to login after running the script.
+# Consider not running configure_user_pi until everything works.
+export myPublicSSHKey="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIHJYsxpawSLfmIAZTPWdWe2xLAH758JjNs5/Z2pPWYm"
+
 echo -e "\e[32m-----------------------------------------------------\e[0m";
 echo -e "\e[32mStarting Installation of NTP Server\e[0m";
 echo -e "\e[32m-----------------------------------------------------\e[0m";
 echo -e;
-
-# SSH Public Key - Remember to change this, or you won't be able to login after running the script.
-# Consider not running configure_user_pi until everything works.
-export myPublicSSHKey="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIHJYsxpawSLfmIAZTPWdWe2xLAH758JjNs5/Z2pPWYm"
 
 configure_serial;
 

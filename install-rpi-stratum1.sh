@@ -385,8 +385,7 @@ configure_iptables() {
 ## Dropping anything not explicitly allowed
 ##
 :INPUT DROP [0:0]
-:FORWARD DROP [0:0]
-:OUTPUT DROP [0:0]
+:OUTPUT ACCEPT [0:0]
 
 ## Allow everything on loopback
 -A INPUT -i lo -j ACCEPT
@@ -395,23 +394,11 @@ configure_iptables() {
 ##
 ## SSH
 -A INPUT -p tcp -m state --state NEW -m tcp --dport 22 -j ACCEPT
-## DNS
--A OUTPUT -p tcp -m tcp --dport 53 -j ACCEPT
--A OUTPUT -p udp -m udp --dport 53 -j ACCEPT
--A OUTPUT -p tcp -m tcp --dport 853 -j ACCEPT
-## HTTP(S)
--A OUTPUT -p tcp -m tcp --dport 80 -j ACCEPT
--A OUTPUT -p tcp -m tcp --dport 443 -j ACCEPT
 ## NTP
 -A INPUT -p udp -m udp --dport 123 -j ACCEPT
--A OUTPUT -p udp -m udp --dport 123 -j ACCEPT
-## DHCP
--A OUTPUT -p udp -m udp --dport 67 -j ACCEPT
 ## ICMP
--A OUTPUT -p icmp -j ACCEPT
 -A INPUT -p icmp -j ACCEPT
 ## Already established sessions
--A OUTPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
 -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
 ## Commit everything
 COMMIT

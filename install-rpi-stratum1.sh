@@ -6,7 +6,7 @@
 #                                                                   #
 # Email:        martin@bollers.dk                                   #
 # Last Update:  2022-01-02                                          #
-# Version:      4.10                                                #
+# Version:      4.20                                                #
 #                                                                   #
 # Changes:  Tested on Debian 11 (Bullseye)                          #
 #           Minor updates+tested w. Jan 2021 Raspberrypi OS (3.56)  #
@@ -14,75 +14,81 @@
 #           Changed IPTABLES config (3.53)                          #
 #           Optimized for Debian 11 (Bullseye) (4.00)               #
 #           More Log and tty output & ntp.service (4.10)            #
+#           Further tty output showing progress (4.20)              #
 #                                                                   #
 #####################################################################
 
 # Ensure the GPIO-serial port is not in use
 configure_serial() {
-    echo -e "\e[32mconfigure_serial()\e[0m";
+    echo -e "\e[32m - configure_serial()\e[0m";
     /usr/bin/logger 'configure_serial()' -t 'Stratum1 NTP Server';
-    systemctl stop serial-getty@ttyAMA0.service;
-    systemctl disable serial-getty@ttyAMA0.service;
-    sed -i -e "s/console=serial0,115200//" /boot/cmdline.txt;
-    echo -e "\e[32mconfigure_serial() finished\e[0m";
+    echo -e "\e[36m ... stopping and disabling serial tty, as this will be used for NMEA data\e[0m";
+    systemctl stop serial-getty@ttyAMA0.service > /dev/null 2>&1;
+    systemctl disable serial-getty@ttyAMA0.service > /dev/null 2>&1;
+    sed -i -e "s/console=serial0,115200//" /boot/cmdline.txt > /dev/null 2>&1;
+    echo -e "\e[32m - configure_serial() finished\e[0m";
     /usr/bin/logger 'configure_serial() finished' -t 'Stratum1 NTP Server';
 }
 
 configure_locale() {
-    echo -e "\e[32mconfigure_locale()\e[0m";
+    echo -e "\e[32m - configure_locale()\e[0m";
     /usr/bin/logger 'configure_locale()' -t 'Stratum1 NTP Server';
-    echo -e "\e[36m..Configure locale (default:C.UTF-8)\e[0m";
+    echo -e "\e[36m ... Configuring locale (default:C.UTF-8)\e[0m";
     export DEBIAN_FRONTEND=noninteractive;
-    update-locale LANG=en_GB.utf8;
+    echo -e "\e[36m ... updating locale\e[0m";
+    update-locale LANG=en_GB.utf8 > /dev/null 2>&1;
     cat << __EOF__  > /etc/default/locale
 # /etc/default/locale
 LANG=C.UTF-8
 LANGUAGE=C.UTF-8
 LC_ALL=C.UTF-8
 __EOF__
-    echo -e "\e[32mconfigure_locale() finished\e[0m";
+    echo -e "\e[32m - configure_locale() finished\e[0m";
     /usr/bin/logger 'configure_locale() finished' -t 'Stratum1 NTP Server';
 }
 
 configure_timezone() {
-    echo -e "\e[32mconfigure_timezone()\e[0m";
+    echo -e "\e[32m - configure_timezone()\e[0m";
     /usr/bin/logger 'configure_timezone()' -t 'Stratum1 NTP Server';
-    echo -e "\e[36m..Set timezone to Etc/UTC\e[0m";
+    echo -e "\e[36m ... Set timezone to Etc/UTC\e[0m";
     export DEBIAN_FRONTEND=noninteractive;
-    rm /etc/localtime;
+    echo -e "\e[36m ... Configuring timezone\e[0m";
+    rm /etc/localtime > /dev/null 2>&1;
     echo 'Etc/UTC' > /etc/timezone;
-    dpkg-reconfigure -f noninteractive tzdata;
-    echo -e "\e[32mconfigure_timezone() finished\e[0m";
+    dpkg-reconfigure -f noninteractive tzdata > /dev/null 2>&1;
+    echo -e "\e[32m - configure_timezone() finished\e[0m";
     /usr/bin/logger 'configure_timezone() finished' -t 'Stratum1 NTP Server';
 }
 
 install_updates() {
-    echo -e "\e[32minstall_updates()\e[0m";
+    echo -e "\e[32m - install_updates()\e[0m";
     /usr/bin/logger 'install_updates()' -t 'Stratum1 NTP Server';
     export DEBIAN_FRONTEND=noninteractive;
-    sync \
-    && echo -e "\e[36m..remove bluez\e[0m" && apt-get -y purge bluez \
-    && echo -e "\e[36m..update\e[0m" && apt-get update \
-    && echo -e "\e[36m..full-upgrade\e[0m" && apt-get -y full-upgrade \
-    && echo -e "\e[36m..autoremove\e[0m" && apt-get -y --purge autoremove \
-    && echo -e "\e[36m..autoclean\e[0m" && apt-get autoclean \
-    && echo -e "\e[36m..Done\e[0m" \
-    && sync;
-    echo -e "\e[32minstall_updates() finished\e[0m";
+    sync
+    echo -e "\e[36m ... removing bluetooth packages and updating everything\e[0m";
+    echo -e "\e[36m ... remove bluez\e[0m" && apt-get -qq -y purge bluez > /dev/null 2>&1
+    echo -e "\e[36m ... update\e[0m" && apt-get -qq update > /dev/null 2>&1
+    echo -e "\e[36m ... full-upgrade\e[0m" && apt-get -qq -y full-upgrade > /dev/null 2>&1
+    echo -e "\e[36m ... cleaning up apt\e[0m";
+    echo -e "\e[36m ... autoremove\e[0m" && apt-get -qq -y --purge autoremove > /dev/null 2>&1
+    echo -e "\e[36m ... autoclean\e[0m" && apt-get -qq autoclean > /dev/null 2>&1
+    echo -e "\e[36m ... Done\e[0m" > /dev/null 2>&1
+    sync;
+    echo -e "\e[32m - install_updates() finished\e[0m";
     /usr/bin/logger 'install_updates() finished' -t 'Stratum1 NTP Server';
 }
 
 configure_gps() {
     /usr/bin/logger 'configure_gps()' -t 'Stratum1 NTP Server';
-    echo -e "\e[32mconfigure_gps()\e[0m";
+    echo -e "\e[32m - configure_gps()\e[0m";
     ## Install gpsd
     export DEBIAN_FRONTEND=noninteractive;
-    echo -e "\e[36m..Install gpsd\e[0m";
-    apt-get -y install gpsd gpsd-clients;
+    echo -e "\e[36m ... Installing gpsd\e[0m";
+    apt-get -qq -y install gpsd gpsd-clients > /dev/null 2>&1;
     ## Setup GPSD
-    echo -e "\e[36m..Setup gpsd\e[0m";
-    systemctl stop gpsd.socket;
-    systemctl stop gpsd.service;
+    echo -e "\e[36m ... setting up gpsd\e[0m";
+    systemctl stop gpsd.socket > /dev/null 2>&1;
+    systemctl stop gpsd.service > /dev/null 2>&1;
     cat << __EOF__  > /etc/default/gpsd
 # /etc/default/gpsd
 ## Stratum1
@@ -93,28 +99,28 @@ USBAUTO="false"
 GPSD_SOCKET="/var/run/gpsd.sock"
 __EOF__
     sync;
-    systemctl restart gpsd.service;
-    systemctl restart gpsd.socket;
-    rm -f /etc/dhcp/dhclient-exit-hooks.d/ntp;
-    echo -e "\e[36m..create rule for symbolic links\e[0m";
+    systemctl restart gpsd.service > /dev/null 2>&1;
+    systemctl restart gpsd.socket > /dev/null 2>&1;
+    rm -f /etc/dhcp/dhclient-exit-hooks.d/ntp > /dev/null 2>&1;
+    echo -e "\e[36m ... creating rule for symbolic links\e[0m";
     cat << __EOF__  > /etc/udev/rules.d/99-gps.rules
 ## Stratum1
 KERNEL=="pps0",SYMLINK+="gpspps0"
 KERNEL=="ttyAMA0", SYMLINK+="gps0"
 __EOF__
-    echo -e "\e[32mconfigure_gps() finished\e[0m";
+    echo -e "\e[32m - configure_gps() finished\e[0m";
     /usr/bin/logger 'configure_gps() finished' -t 'Stratum1 NTP Server';
 }
 
 configure_pps() {
-    echo -e "\e[32mconfigure_pps()\e[0m";
+    echo -e "\e[32m - configure_pps()\e[0m";
     /usr/bin/logger 'configure_pps()' -t 'Stratum1 NTP Server';
     export DEBIAN_FRONTEND=noninteractive;
     ## Install pps tools
-    echo -e "\e[36m..Install PPS tools\e[0m";
-    apt-get -y install pps-tools;
+    echo -e "\e[36m ... Installing PPS tools\e[0m";
+    apt-get -qq -y install pps-tools > /dev/null 2>&1;
     ## create config.txt in boot also for RPI3 or 4
-    echo -e "\e[36m..setup config.txt for PPS\e[0m";
+    echo -e "\e[36m ... setting up config.txt for PPS\e[0m";
     cat << __EOF__  >> /boot/config.txt
 ## Include ntp server specific settings to config.txt using include
 include ntpserver.txt
@@ -136,39 +142,41 @@ force_turbo=1
 arm_freq=1000
 __EOF__
     ## ensure pps-gpio module loads
-    echo -e "\e[36m..Add pps-gpio to modules for PPS\e[0m";
+    echo -e "\e[36m ... adding pps-gpio to modules for PPS\e[0m";
     echo 'pps-gpio' >> /etc/modules;
-    echo -e "\e[32mconfigure_pps() finished\e[0m";
+    echo -e "\e[32m - configure_pps() finished\e[0m";
     /usr/bin/logger 'configure_pps() finished' -t 'Stratum1 NTP Server';
 }
 
 install_ntp_tools() {
-    echo -e "\e[32minstall_ntp_tools()\e[0m";
+    echo -e "\e[32m - install_ntp_tools()\e[0m";
     /usr/bin/logger 'install_ntp_tools()' -t 'Stratum1 NTP Server';
     export DEBIAN_FRONTEND=noninteractive;
-    apt-get -y install ntpstat ntpdate;
-    echo -e "\e[32minstall_ntp_tools() finished\e[0m";
+    echo -e "\e[36m ... installing ntp tools\e[0m";
+    apt-get -qq -y install ntpstat ntpdate > /dev/null 2>&1;
+    echo -e "\e[32m - install_ntp_tools() finished\e[0m";
     /usr/bin/logger 'install_ntp_tools() finished' -t 'Stratum1 NTP Server';
 }
 
 install_ntp() {
     /usr/bin/logger 'install_ntp()' -t 'Stratum1 NTP Server';
-    echo -e "\e[32minstall_ntp()\e[0m";
+    echo -e "\e[32m - install_ntp()\e[0m";
     export DEBIAN_FRONTEND=noninteractive;
-    apt-get -y install ntp;
+    echo -e "\e[36m ... installing ntp\e[0m";
+    apt-get -qq -y install ntp > /dev/null 2>&1;
     /usr/bin/logger 'install_ntp() finished' -t 'Stratum1 NTP Server';
-    echo -e "\e[32minstall_ntp() finished\e[0m";
+    echo -e "\e[32m - install_ntp() finished\e[0m";
 }
 
 configure_ntp() {
-    echo -e "\e[32mconfigure_ntp()\e[0m";
-    echo -e "\e[36m..Stop ntpd\e[0m";
-    systemctl stop ntp.service;
+    echo -e "\e[32m - configure_ntp()\e[0m";
+    echo -e "\e[36m ... stopping ntp.service\e[0m";
+    systemctl stop ntp.service > /dev/null 2>&1;
 
-    echo -e "\e[36m..Update ntp.service\e[0m";
-    sed -i "/After=/a Requires=gpsd.service" /lib/systemd/system/ntp.service;
-    echo -e "\e[36m..Requires gpsd.service added to ntp.service\e[0m";
-
+    echo -e "\e[36m ... updating ntp.service\e[0m";
+    echo -e "\e[36m ... adding \e[35mRequires gpsd.service\e[36m to ntp.service\e[0m";
+    sed -i "/After=/a Requires=gpsd.service" /lib/systemd/system/ntp.service > /dev/null 2>&1;
+    echo -e "\e[36m ... creating new ntp.conf\e[0m";
     cat << __EOF__  > /etc/ntp.conf
 ##################################################
 #
@@ -307,21 +315,21 @@ leapfile /var/lib/ntp/leap-seconds.list
 __EOF__
 
     # Create directory for logfiles and let ntp own it
-    echo -e "\e[36m..Create directory for logfiles and let ntp own it\e[0m";
-    mkdir -p /var/log/ntpd
-    chown ntp:ntp /var/log/ntpd
-    sync;    
+    echo -e "\e[36m ... Create directory for logfiles and let ntp own it\e[0m";
+    mkdir -p /var/log/ntpd > /dev/null 2>&1
+    chown ntp:ntp /var/log/ntpd > /dev/null 2>&1
+    sync;
     ## Restart NTPD
-    systemctl daemon-reload;
-    systemctl restart ntp.service;
-    echo -e "\e[32mconfigure_ntp() finished\e[0m";
+    systemctl daemon-reload > /dev/null 2>&1;
+    systemctl restart ntp.service > /dev/null 2>&1;
+    echo -e "\e[32m - configure_ntp() finished\e[0m";
     /usr/bin/logger 'configure_ntp() finished' -t 'Stratum1 NTP Server';
 }
 
 configure_update-leap() {
-    echo -e "\e[32mconfigure_update-leap()\e[0m";
+    echo -e "\e[32m - configure_update-leap()\e[0m";
     /usr/bin/logger 'configure_update-leap()' -t 'Stratum1 NTP Server';
-    echo -e "\e[36m..Creating service unit file\e[0m";
+    echo -e "\e[36m ... Creating update-leap.service unit file\e[0m";
     cat << __EOF__  > /lib/systemd/system/update-leap.service
 # service file running update-leap
 # triggered by update-leap.timer
@@ -340,7 +348,7 @@ WorkingDirectory=/var/lib/ntp/
 WantedBy=multi-user.target
 __EOF__
 
-   echo -e "\e[36m..creating timer unit file\e[0m";
+   echo -e "\e[36m ... creating timer unit file\e[0m";
 
    cat << __EOF__  > /lib/systemd/system/update-leap.timer
 # runs update-leap Weekly.
@@ -361,23 +369,26 @@ WantedBy=multi-user.target
 __EOF__
 
     sync;
-    echo -e "\e[36m..Get initial leap file and making sure timer and service can run\e[0m";
-    systemctl daemon-reload;
-    systemctl enable update-leap.timer;
-    systemctl enable update-leap.service;
-    systemctl start update-leap.timer;
-    systemctl start update-leap.service;
-    echo -e "\e[32mconfigure_update-leap() finished\e[0m";
+    echo -e "\e[36m ... downloading leap file and making sure timer and service will run\e[0m";
+    systemctl daemon-reload > /dev/null 2>&1;
+    echo -e "\e[36m ... enabling update-leap timer and service\e[0m";
+    systemctl enable update-leap.timer > /dev/null 2>&1;
+    systemctl enable update-leap.service > /dev/null 2>&1;
+    echo -e "\e[36m ... starting timer and service to download leap-file\e[0m";
+    systemctl start update-leap.timer > /dev/null 2>&1;
+    systemctl start update-leap.service > /dev/null 2>&1;
+    echo -e "\e[32m - configure_update-leap() finished\e[0m";
     /usr/bin/logger 'configure_update-leap() finished' -t 'Stratum1 NTP Server';
 }
 
 configure_iptables() {
-    echo -e "\e[32mconfigure_iptables()\e[0m";
+    echo -e "\e[32m - configure_iptables()\e[0m";
     /usr/bin/logger 'configure_iptables()' -t 'Stratum1 NTP Server';
-    echo -e "\e[32m-Creating iptables rules file\e[0m";
     # Bullseye does not have iptables by default, so installing
     # until converted to nftables
-    apt-get -y install iptables;
+    echo -e "\e[36m ... installing iptables\e[0m";
+    apt-get -qq -y install iptables > /dev/null 2>&1;
+    echo -e "\e[36m ... Creating iptables rules for IPv4\e[0m";
     cat << __EOF__  >> /etc/network/iptables.rules
 ##
 ## Ruleset for Stratum-1 NTP Server
@@ -407,7 +418,7 @@ configure_iptables() {
 COMMIT
 __EOF__
 
-    echo -e "\e[36m..Script applying iptables rules\e[0m";
+    echo -e "\e[36m ... creating script applying iptables rules\e[0m";
     cat << __EOF__  >> /etc/network/if-up.d/firewallrules
 #!/bin/sh
 iptables-restore < /etc/network/iptables.rules
@@ -415,15 +426,15 @@ exit 0
 __EOF__
     sync;
     ## make the script executable
-    chmod +x /etc/network/if-up.d/firewallrules
-    echo -e "\e[32mconfigure_iptables() finished\e[0m";
+    chmod 744 /etc/network/if-up.d/firewallrules > /dev/null 2>&1
+    echo -e "\e[32m - configure_iptables() finished\e[0m";
     /usr/bin/logger 'configure_iptables() finished' -t 'Stratum1 NTP Server';
 }
 
 configure_motd() {
-    echo -e "\e[32mconfigure_motd()\e[0m";
+    echo -e "\e[32m - configure_motd()\e[0m";
     /usr/bin/logger 'configure_motd()' -t 'Stratum1 NTP Server';
-    echo -e "\e[36m..Create motd file\e[0m";
+    echo -e "\e[36m ... Creating motd file\e[0m";
     cat << __EOF__  >> /etc/motd
 
 *******************************************
@@ -441,91 +452,95 @@ configure_motd() {
 __EOF__
     
     sync;
-    echo -e "\e[32mconfigure_motd() finished\e[0m";
+    echo -e "\e[32m - configure_motd() finished\e[0m";
     /usr/bin/logger 'configure_motd() finished' -t 'Stratum1 NTP Server';
 }
 
 install_ssh_keys() {
-    echo -e "\e[32minstall_ssh_keys()\e[0m";
+    echo -e "\e[32m - install_ssh_keys()\e[0m";
     /usr/bin/logger 'install_ssh_keys()' -t 'Stratum1 NTP Server';
-    echo -e "\e[36m..Add public key to authorized_keys file\e[0m";
+    echo -e "\e[36m ... Addding public key to authorized_keys file\e[0m";
     # add SSH public key for root logon - change this to your own key
-    mkdir /root/.ssh
+    mkdir /root/.ssh > /dev/null 2>&1
     # Change to valid public key below 
-    echo $myPublicSSHKey | tee /root/.ssh/authorized_keys
-    chmod 700 /root/.ssh
-    chmod 644 /root/.ssh/authorized_keys
+    echo $myPublicSSHKey | tee /root/.ssh/authorized_keys > /dev/null 2>&1
+    echo -e "\e[36m ... setting permissions on authorized_keys file\e[0m";
+    chmod 700 /root/.ssh > /dev/null 2>&1
+    chmod 644 /root/.ssh/authorized_keys > /dev/null 2>&1
     sync;
-    echo -e "\e[32minstall_ssh_keys() finished\e[0m";
+    echo -e "\e[32m - install_ssh_keys() finished\e[0m";
     /usr/bin/logger 'install_ssh_keys() finished' -t 'Stratum1 NTP Server';
 }
 
 configure_sshd() {
-    echo -e "\e[32mconfigure_sshd()\e[0m";
+    echo -e "\e[32m - configure_sshd()\e[0m";
     /usr/bin/logger 'configure_sshd()' -t 'Stratum1 NTP Server';
     # Disable password authN
-    echo "PasswordAuthentication no" | tee -a /etc/ssh/sshd_config
+    echo "PasswordAuthentication no" | tee -a /etc/ssh/sshd_config > /dev/null 2>&1
     ## Generate new host keys
-    echo -e "\e[36m..Delete and recreate host SSH keys\e[0m";
-    rm -v /etc/ssh/ssh_host_*;
-    dpkg-reconfigure openssh-server;
-    echo -e "\e[32mconfigure_sshd() finished\e[0m";
+    echo -e "\e[36m ... Deleting host SSH keys\e[0m";
+    rm -v /etc/ssh/ssh_host_* > /dev/null 2>&1;
+    echo -e "\e[36m ... recreating host SSH keys\e[0m";
+    dpkg-reconfigure openssh-server > /dev/null 2>&1;
+    echo -e "\e[32m - configure_sshd() finished\e[0m";
     /usr/bin/logger 'configure_sshd() finished' -t 'Stratum1 NTP Server';
      sync;
 }
 
 disable_timesyncd() {
-    echo -e "\e[32mDisable_timesyncd()\e[0m";
+    echo -e "\e[32m - Disable_timesyncd()\e[0m";
     /usr/bin/logger 'disable_timesyncd()' -t 'Stratum1 NTP Server';
-    systemctl stop systemd-timesyncd
-    systemctl disable systemd-timesyncd
+    echo -e "\e[36m ... stopping and disabling systemd-timesyncd\e[0m";
+    systemctl stop systemd-timesyncd > /dev/null 2>&1
+    systemctl disable systemd-timesyncd > /dev/null 2>&1
     /usr/bin/logger 'disable_timesyncd() finished' -t 'Stratum1 NTP Server';
-    echo -e "\e[32mDisable_timesyncd() finished\e[0m";
+    echo -e "\e[32m - Disable_timesyncd() finished\e[0m";
 }
 
 configure_dhcp() {
-    echo -e "\e[32mconfigure_dhcp()\e[0m";
+    echo -e "\e[32m - configure_dhcp()\e[0m";
     /usr/bin/logger 'configure_dhcp()' -t 'Stratum1 NTP Server';
     ## Remove ntp and timesyncd exit hooks to cater for server using DHCP
-    echo -e "\e[36m..Remove scripts utilizing DHCP\e[0m";
-    rm /etc/dhcp/dhclient-exit-hooks.d/ntp
-    rm /etc/dhcp/dhclient-exit-hooks.d/timesyncd
+    echo -e "\e[36m ... Removing scripts changing ntp configuration via DHCP options\e[0m";
+    rm /etc/dhcp/dhclient-exit-hooks.d/ntp > /dev/null 2>&1
+    rm /etc/dhcp/dhclient-exit-hooks.d/timesyncd > /dev/null 2>&1
     ## Remove ntp.conf.dhcp if it exist
-    echo -e "\e[36m..Removing ntp.conf.dhcp\e[0m";    
-    rm -f /run/ntp.conf.dhcp
+    echo -e "\e[36m ... Removing ntp.conf.dhcp file\e[0m";
+    rm -f /run/ntp.conf.dhcp > /dev/null 2>&1
     ## Disable NTP option for dhcp
-    echo -e "\e[36m..Disable ntp_servers option from dhclient\e[0m";   
-    sed -i -e "s/option ntp_servers/#option ntp_servers/" /etc/dhcpcd.conf;
+    echo -e "\e[36m ... Disabling ntp_servers option from dhclient configuration file\e[0m";   
+    sed -i -e "s/option ntp_servers/#option ntp_servers/" /etc/dhcpcd.conf > /dev/null 2>&1;
     ## restart NTPD yet again after cleaning up DHCP
-    systemctl restart ntp
-    echo -e "\e[32mconfigure_dhcp() finished\e[0m";
+    echo -e "\e[36m ... restarting ntp service after cleaning up DHCP\e[0m";
+    systemctl restart ntp > /dev/null 2>&1
+    echo -e "\e[32m - configure_dhcp() finished\e[0m";
     /usr/bin/logger 'configure_dhcp() finished' -t 'Stratum1 NTP Server';
 }
 
 # If You've installed an RTC HWCLOCK on the I2C bus
 # Verify which RTC chip is used
 install_hwclock() {
-    echo -e "\e[32mInstall_hwclock()\e[0m";
+    echo -e "\e[32m - Install_hwclock()\e[0m";
     /usr/bin/logger 'install_hwclock()' -t 'Stratum1 NTP Server';
     export DEBIAN_FRONTEND=noninteractive;
-    echo -e "\e[36m..Install I2C tools\e[0m";
-    apt-get -y install i2c-tools
-    echo -e "\e[36m..Remove the Fake HWCLOCK\e[0m";
-    apt-get -y remove fake-hwclock
-    rm /etc/cron.hourly/fake-hwclock
-    update-rc.d -f fake-hwclock remove
-    rm /etc/init.d/fake-hwclock
-    systemctl stop fake-hwclock.service
-    systemctl disable fake-hwclock.service
-    echo -e "\e[36m..Enable HWCLOCK\e[0m";
-    update-rc.d hwclock.sh enable;
+    echo -e "\e[36m ... Installing I2C tools\e[0m";
+    apt-get -qq -y install i2c-tools > /dev/null 2>&1
+    echo -e "\e[36m ... Removing the Fake HWCLOCK\e[0m";
+    apt-get -qq -y remove fake-hwclock > /dev/null 2>&1
+    rm /etc/cron.hourly/fake-hwclock > /dev/null 2>&1
+    update-rc.d -f fake-hwclock remove > /dev/null 2>&1
+    rm /etc/init.d/fake-hwclock > /dev/null 2>&1
+    systemctl stop fake-hwclock.service > /dev/null 2>&1
+    systemctl disable fake-hwclock.service > /dev/null 2>&1
+    echo -e "\e[36m ... Enable HWCLOCK\e[0m";
+    update-rc.d hwclock.sh enable > /dev/null 2>&1
    
     #add to config.txt dtoverlay=i2c-rtc,pcf8563 - change to specifc RTC chip
-    echo -e "\e[36m..Add dtoverlay to config.txt\e[0m";
+    echo -e "\e[36m ... Adding dtoverlay to config.txt via included ntpserver.txt\e[0m";
     cat << __EOF__  >> /boot/ntpserver.txt
 dtoverlay=i2c-rtc,pcf8563
 __EOF__
-    echo -e "\e[36m..Modify hwclock-set\e[0m";
+    echo -e "\e[36m ... Modifying hwclock-set\e[0m";
     cat << __EOF__  >> /lib/udev/hwclock-set
 #!/bin/sh
 # Reset the System Clock to UTC if the hardware clock from which it
@@ -568,48 +583,54 @@ fi
 __EOF__
 
     sync;
-    dtoverlay i2c-rtc pcf8563;
+    dtoverlay i2c-rtc pcf8563 > /dev/null 2>&1;
     echo pcf8563 0x51 > /sys/class/i2c-adapter/i2c-1/new_device;
-    hwclock --systohc --utc;
+    echo -e "\e[36m ... synchronizing hwclock with system\e[0m";
+    hwclock --systohc --utc > /dev/null 2>&1;
     echo -e "\e[1;31mRinstall_hwclock finished\e[0m";
     /usr/bin/logger 'install_hwclock() finished' -t 'Stratum1 NTP Server';
 }
 
 finish_reboot() {
-    echo -e "\e[1;31mCountdown to reboot!\e[0m";
+    echo -e "\e[1;31m - Countdown to reboot!\e[0m";
     /usr/bin/logger 'Countdown to reboot!' -t 'Stratum1 NTP Server'
     secs=30;
     echo -e;
     echo -e "\e[1;31m--------------------------------------------\e[0m";
         while [ $secs -gt 0 ]; do
-            echo -ne "\e[1;32mRebooting in (seconds):  "
+            echo -ne "\e[1;32m - Rebooting in (seconds):  "
             echo -ne "\e[1;31m$secs\033[0K\r"
             sleep 1
             : $((secs--))
         done;
     sync;
     echo -e
-    echo -e "\e[1;31mREBOOTING!\e[0m";
+    echo -e "\e[1;31m - REBOOTING!\e[0m";
     /usr/bin/logger 'Rebooting!!' -t 'Stratum1 NTP Server'
     reboot;
 }
 
 configure_user_pi() {
-    echo -e "\e[1;31mconfigure_user_pi()\e[0m";
+    echo -e "\e[1;32m - configure_user_pi()\e[0m";
     /usr/bin/logger 'configure_user_pi()' -t 'Stratum1 NTP Server'
+    echo -e "\e[36m ... generating long random password\e[0m";
     randompw=$(strings /dev/urandom | grep -o '[[:alnum:]]' | head -n 64 | tr -d '\n');
-    echo pi:$randompw | chpasswd;
-    usermod pi --lock;
+    echo -e "\e[36m ... changing password for user pi\e[0m";
+    echo pi:$randompw | chpasswd > /dev/null 2>&1;
+    echo -e "\e[36m ... locking user pi\e[0m";
+    usermod pi --lock
     /usr/bin/logger 'configure_user_pi() finished' -t 'Stratum1 NTP Server'
-    echo -e "\e[1;31mconfigure_user_pi() finished\e[0m";
+    echo -e "\e[1;32m - configure_user_pi() finished\e[0m";
 }
 
 configure_wifi() {
-    echo -e "\e[1;31mconfigure_wifi()\e[0m";
+    echo -e "\e[1;32m - configure_wifi()\e[0m";
     /usr/bin/logger 'configure_wifi()' -t 'Stratum1 NTP Server'
-    rfkill unblock 0
-    iw reg set $REGULATORY_COUNTRY;
-    echo -e "\e[1;31mconfigure_wifi() finished\e[0m";
+    echo -e "\e[36m ... unblocking WiFi\e[0m";
+    rfkill unblock 0 > /dev/null 2>&1
+    echo -e "\e[36m ... setting regulatory country to $REGULATORY_COUNTRY\e[0m";
+    iw reg set $REGULATORY_COUNTRY > /dev/null 2>&1;
+    echo -e "\e[1;32m - configure_wifi() finished\e[0m";
     /usr/bin/logger 'configure_wifi() finished' -t 'Stratum1 NTP Server'
 }
 
@@ -618,114 +639,74 @@ configure_wifi() {
 ## Main Routine                                                                                                 #
 #################################################################################################################
 main() {
+    # SSH Public Key - Remember to change this, or you won't be able to login after running the script.
+    # Consider not running configure_user_pi until everything works.
+    myPublicSSHKey="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIHJYsxpawSLfmIAZTPWdWe2xLAH758JjNs5/Z2pPWYm"
+    # Configure WiFi
+    REGULATORY_COUNTRY="DK"
 
-# SSH Public Key - Remember to change this, or you won't be able to login after running the script.
-# Consider not running configure_user_pi until everything works.
-myPublicSSHKey="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIHJYsxpawSLfmIAZTPWdWe2xLAH758JjNs5/Z2pPWYm"
-# Configure WiFi
-REGULATORY_COUNTRY="DK"
+    echo -e "\e[32m-------------------------------------------------------------\e[0m";
+    echo -e "\e[32m     Starting Installation of NTP Stratum-1 Server\e[0m";
+    echo -e "\e[32m-------------------------------------------------------------\e[0m";
+    echo -e "\e[36m";
+    echo -e '     _                                       _ _       '    
+    echo -e '     | |__  ___  ___  ___ _   _ _ __ ___   __| | | __  '
+    echo -e '     | `_ \/ __|/ _ \/ __| | | | `__/ _ \ / _` | |/ /  '
+    echo -e '     | |_) \__ \  __/ (__| |_| | | |  __/| (_| |   <   '
+    echo -e '     |_.__/|___/\___|\___|\__,_|_|  \___(_)__,_|_|\_\  '
+    echo -e "\e[0m";
+    
+    configure_serial;
 
-echo -e "\e[32m-----------------------------------------------------\e[0m";
-echo -e "\e[32mStarting Installation of NTP Server\e[0m";
-echo -e "\e[32m-----------------------------------------------------\e[0m";
-echo -e;
+    configure_locale;
 
-configure_serial;
+    configure_timezone;
 
-configure_locale;
+    install_updates;
 
-configure_timezone;
+    configure_gps;
 
-install_updates;
+    configure_pps;
 
-configure_gps;
+    disable_timesyncd;
 
-configure_pps;
+    install_ntp_tools;
 
-disable_timesyncd;
+    install_ntp;
 
-install_ntp_tools;
+    configure_ntp;
 
-install_ntp;
+    configure_dhcp;
 
-configure_ntp;
+    configure_update-leap;
 
-configure_dhcp;
+    install_ssh_keys;
 
-configure_update-leap;
+    configure_sshd;
 
-install_ssh_keys;
+    configure_iptables;
 
-configure_sshd;
+    configure_motd;
 
-configure_iptables;
+    configure_wifi;
 
-configure_motd;
+    #if RTC HWCLOCK installed, uncomment below
+    #install_hwclock;
 
-configure_wifi;
+    ## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ## Disable (lock) user pi on the RPi - only do this if you are sure the SSH keys work, or you've effectively shut the door on yourself
+    ## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    configure_user_pi;
 
-#if RTC HWCLOCK installed
-#install_hwclock;
-
-## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-## Disable (lock) user pi on the RPi - only do this if you are sure the SSH keys work, or you've effectively shut the door on yourself
-## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-configure_user_pi;
-
-## Finish with encouraging message, then reboot
-echo -e "\e[32mInstallation and configuration of Stratum-1 server complete.\e[0m";
-echo -e "\e[1;31mAfter reboot, please verify GPSD and NTPD operation\e[0m";
-echo -e;
-
-finish_reboot;
-
+    ## Finish with encouraging message, then reboot
+    echo -e "\e[32m - Installation and configuration of Stratum-1 server complete.\e[0m";
+    echo -e "\e[1;31m - After reboot, please verify GPSD and NTPD operation\e[0m";
+    echo -e;
+    echo -e "\e[1;32mmain()\e[0m";
+    finish_reboot;
 }
 
 main
 
 exit 0
 
-#################################################################################################
-# Information: Use these commands for t-shooting                                                #
-#################################################################################################
-#
-# Check syslog for 'finalized installation of stratum-1 server'
-#   then at least the script finished, but there should also be
-#   a log entry for each routine called (main)
-#
-# dmesg | grep pps
-# ppstest /dev/pps0
-# ppswatch -a /dev/pps0
-#
-# gpsd -D 5 -N -n /dev/ttyAMA0 /dev/pps0 -F /var/run/gpsd.sock
-# systemctl stop gpsd.*
-# killall -9 gpsd
-# dpkg-reconfigure -plow gpsd
-#
-# cgps -s
-# gpsmon
-# ipcs -m
-# ntpshmmon
-#
-# using the ntp daemon
-# ntpq -crv -pn
-# watch -n 10 'ntpstat; ntpq -p -crv; ntptime;'
-# watch -n 10 'hostname -s; echo -----------; ntpstat; ntpq -p -crv; ntptime;'
-#
-# Using Chrony
-# watch -n5 'hostname -s; echo --------; chronyc sources -v; chronyc tracking;'
-#
-# If HW clock installed
-# dmesg | grep rtc
-# hwclock --systohc --utc
-# hwclock --show --utc --debug
-# cat /sys/class/rtc/rtc0/date
-# cat /sys/class/rtc/rtc0/time
-# cat /sys/class/rtc/rtc0/since_epoch
-# cat /sys/class/rtc/rtc0/name
-# i2cdetect -y 1
-#
-# Update system
-# export DEBIAN_FRONTEND=noninteractive; apt update; apt dist-upgrade -y;
-#
-#################################################################################################

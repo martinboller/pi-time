@@ -1,44 +1,47 @@
-#################################################################################################
-# Information: Use these commands for t-shooting                                                #
-#################################################################################################
-#                                                                                               #
-# Check syslog for 'finalized installation of stratum-1 server'                                 #
-#   then at least the script finished, but there should also be                                 #
-#   a log entry for each routine called (main)                                                  #
-#                                                                                               #
-# dmesg | grep pps                                                                              #
-# ppstest /dev/pps0                                                                             #
-# ppswatch -a /dev/pps0                                                                         #
-#                                                                                               #
-# gpsd -D 5 -N -n /dev/ttyAMA0 /dev/pps0 -F /var/run/gpsd.sock                                  #
-# systemctl stop gpsd.*                                                                         #
-# killall -9 gpsd                                                                               #
-# dpkg-reconfigure -plow gpsd                                                                   #
-#                                                                                               #
-# cgps -s                                                                                       #
-# gpsmon                                                                                        #
-# ipcs -m                                                                                       #
-# ntpshmmon                                                                                     #
-#                                                                                               #
-# using the ntp daemon                                                                          #
-# ntpq -crv -pn                                                                                 #
-# watch -n 10 'ntpstat; ntpq -p -crv; ntptime;'                                                 #
-# watch -n 10 'hostname -s; echo -----------; ntpstat; ntpq -p -crv; ntptime;'                  #
-#                                                                                               #
-# Using Chrony                                                                                  #
-# watch -n5 'hostname -s; echo --------; chronyc sources -v; chronyc tracking;'                 #
-#                                                                                               #
-# If HW clock installed                                                                         #
-# dmesg | grep rtc                                                                              #
-# hwclock --systohc --utc                                                                       #
-# hwclock --show --utc --debug                                                                  #
-# cat /sys/class/rtc/rtc0/date                                                                  #
-# cat /sys/class/rtc/rtc0/time                                                                  #
-# cat /sys/class/rtc/rtc0/since_epoch                                                           #
-# cat /sys/class/rtc/rtc0/name                                                                  #
-# i2cdetect -y 1                                                                                #
-#                                                                                               #
-# Update system                                                                                 #
-# export DEBIAN_FRONTEND=noninteractive; apt update; apt dist-upgrade -y;                       #
-#                                                                                               #
-#################################################################################################
+#########################################################################################################
+# Information: Use these commands for t-shooting                                                        #
+#########################################################################################################
+#                                                                                                       #
+# Check syslog for 'finalized installation of stratum-1 server'                                         #
+#   then at least the script finished, but there should also be                                         #
+#   a log entry for each routine called (main)                                                          #
+#                                                                                                       #
+# dmesg | grep pps                                                                                      #
+# ppstest /dev/pps0                                                                                     #
+# ppswatch -a /dev/pps0                                                                                 #
+#                                                                                                       #
+# gpsd -D 5 -N -n /dev/ttyAMA0 /dev/pps0 -F /var/run/gpsd.sock                                          #
+# systemctl stop gpsd.*                                                                                 #
+# killall -9 gpsd                                                                                       #
+# dpkg-reconfigure -plow gpsd                                                                           #
+#                                                                                                       #
+# cgps -s                                                                                               #
+# gpsmon                                                                                                #
+# ipcs -m                                                                                               #
+# ntpshmmon                                                                                             #
+#                                                                                                       #
+# Coldboot u-blox                                                                                       #
+# gpsctl -t "uBlox UBX binary" -D 5 /dev/ttyAMA0 -x \xB5\x62\x06\x04\x04\x00\xFF\x87\x00\x00\x94\xF5    #
+#                                                                                                       #
+# using the ntp daemon                                                                                  #
+# ntpq -crv -pn                                                                                         #
+# watch -n 10 'ntpstat; ntpq -p -crv; ntptime;'                                                         #
+# watch -n 10 'hostname -s; echo -----------; ntpstat; ntpq -p -crv; ntptime;'                          #
+#                                                                                                       #
+# Using Chrony                                                                                          #
+# watch -n5 'hostname -s; echo --------; chronyc sources -v; chronyc tracking;'                         #
+#                                                                                                       #
+# If HW clock installed                                                                                 #
+# dmesg | grep rtc                                                                                      #
+# hwclock --systohc --utc                                                                               #
+# hwclock --show --utc --debug                                                                          #
+# cat /sys/class/rtc/rtc0/date                                                                          #
+# cat /sys/class/rtc/rtc0/time                                                                          #
+# cat /sys/class/rtc/rtc0/since_epoch                                                                   #
+# cat /sys/class/rtc/rtc0/name                                                                          #
+# i2cdetect -y 1                                                                                        #
+#                                                                                                       #
+# Update system                                                                                         #
+# export DEBIAN_FRONTEND=noninteractive; apt update; apt dist-upgrade -y;                               #
+#                                                                                                       #
+#########################################################################################################

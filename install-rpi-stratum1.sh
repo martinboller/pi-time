@@ -634,6 +634,21 @@ configure_wifi() {
     /usr/bin/logger 'configure_wifi() finished' -t 'Stratum1 NTP Server'
 }
 
+create_peerstats_script() {
+    echo -e "\e[1;32m - create_peerstats_script()\e[0m";
+    /usr/bin/logger 'create_peerstats_script()' -t 'Stratum1 NTP Server'
+    cat << __EOF__  >> /var/lib/ntp/peerstats.sh
+#! /bin/sh
+awk '
+     /127\.127\.28\.0/ { sum += $5 * 1000; cnt++; }
+     END { print sum / cnt; }
+' </var/log/ntpstats/peerstats
+__EOF__
+    sync;
+    chmod 755 /var/lib/ntp/peerstats.sh;
+    echo -e "\e[1;32m - create_peerstats_script() finished\e[0m";
+    /usr/bin/logger 'create_peerstats_script() finished' -t 'Stratum1 NTP Server'
+}
 
 #################################################################################################################
 ## Main Routine                                                                                                 #
@@ -689,6 +704,8 @@ main() {
     configure_motd;
 
     configure_wifi;
+
+    create_peerstats_script;
 
     #if RTC HWCLOCK installed, uncomment below
     #install_hwclock;

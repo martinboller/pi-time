@@ -15,6 +15,11 @@ Raspberry PI Stratum 1 server
   - May work on a Raspberry Pi 2, haven't tried.
 
 ### Latest changes 
+#### 2023-12-27 - Raspberry Pi OS (64-bit) Lite (Debian 12, codename: Bookworm)
+  - Version 5 for Raspberry PI OS Lite (64 bit) - Debian 12 (Bookworm)
+  - This script will only work with ntpsec and has only been tested on the Debian 12 (Bookworm) version of RaspberryPi OS
+
+### Latest changes 
 #### 2021-12-02 - Raspberry Pi OS (64-bit) Lite
   - Tested to work with Raspberry Pi OS (64-bit) Lite
 

@@ -11,7 +11,7 @@
 # Changes:  Tested on Debian 11 (Bullseye)                          #
 #                                                                   #
 #####################################################################
-sudo touch /media/$USER/boot/ssh;
+sudo touch /media/$USER/bootfs/ssh;
 sudo nano /media/$USER/rootfs/etc/hostname;
 sudo cp /home/$USER/git/pi-time/install-rpi-stratum1.sh /media/$USER/rootfs/root/;
 sudo cp /home/$USER/git/pi-time/ntp_tips_tricks.txt /media/$USER/rootfs/root/;

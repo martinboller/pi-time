@@ -5,10 +5,10 @@
 # Author:       Martin Boller                                       #
 #                                                                   #
 # Email:        martin@bollers.dk                                   #
-# Last Update:  2022-01-02                                          #
-# Version:      4.20                                                #
+# Last Update:  2023-12-27                                          #
+# Version:      5.00                                                #
 #                                                                   #
-# Changes:  Tested on Debian 11 (Bullseye)                          #
+# Changes:  Tested on Debian 12 (Bookworm) with ntpsec              #
 #           Minor updates+tested w. Jan 2021 Raspberrypi OS (3.56)  #
 #           Cleaned update-leap service (3.54)                      #
 #           Changed IPTABLES config (3.53)                          #
@@ -25,7 +25,8 @@ configure_serial() {
     echo -e "\e[36m ... stopping and disabling serial tty, as this will be used for NMEA data\e[0m";
     systemctl stop serial-getty@ttyAMA0.service > /dev/null 2>&1;
     systemctl disable serial-getty@ttyAMA0.service > /dev/null 2>&1;
-    sed -i -e "s/console=serial0,115200//" /boot/cmdline.txt > /dev/null 2>&1;
+    sed -i -e "s/console=serial0,115200\s//" /boot/firmware/cmdline.txt > /dev/null 2>&1;
+    ldconfig;
     echo -e "\e[32m - configure_serial() finished\e[0m";
     /usr/bin/logger 'configure_serial() finished' -t 'Stratum1 NTP Server';
 }
@@ -89,6 +90,7 @@ configure_gps() {
     echo -e "\e[36m ... setting up gpsd\e[0m";
     systemctl stop gpsd.socket > /dev/null 2>&1;
     systemctl stop gpsd.service > /dev/null 2>&1;
+    systemctl enable gpsd.service > /dev/null 2>&1;
     cat << __EOF__  > /etc/default/gpsd
 # /etc/default/gpsd
 ## Stratum1
@@ -99,8 +101,8 @@ USBAUTO="false"
 GPSD_SOCKET="/var/run/gpsd.sock"
 __EOF__
     sync;
-    systemctl restart gpsd.service > /dev/null 2>&1;
     systemctl restart gpsd.socket > /dev/null 2>&1;
+    systemctl restart gpsd.service > /dev/null 2>&1;
     rm -f /etc/dhcp/dhclient-exit-hooks.d/ntp > /dev/null 2>&1;
     echo -e "\e[36m ... creating rule for symbolic links\e[0m";
     cat << __EOF__  > /etc/udev/rules.d/99-gps.rules
@@ -119,14 +121,14 @@ configure_pps() {
     ## Install pps tools
     echo -e "\e[36m ... Installing PPS tools\e[0m";
     apt-get -qq -y install pps-tools > /dev/null 2>&1;
-    ## create config.txt in boot also for RPI3 or 4
+    ## create t in boot also for RPI3 or 4
     echo -e "\e[36m ... setting up config.txt for PPS\e[0m";
-    cat << __EOF__  >> /boot/config.txt
+#    cat << __EOF__  >> /boot/config.txt
 ## Include ntp server specific settings to config.txt using include
-include ntpserver.txt
-__EOF__
+#include ntpserver.txt
+#__EOF__
 
-    cat << __EOF__  > /boot/ntpserver.txt
+    cat << __EOF__  >> /boot/firmware/config.txt
 # gps + pps + ntp settings
 # https://github.com/raspberrypi/firmware/tree/master/boot/overlays
 #Name:   pps-gpio
@@ -138,8 +140,8 @@ enable_uart=1
 
 ## Constant CPU Speed kept at 1000 for better precision
 ## Normal governor=ondemand so between 600 and 1200 on RPi3 more on 4
-force_turbo=1
-arm_freq=1000
+#force_turbo=1
+#arm_freq=1000
 __EOF__
     ## ensure pps-gpio module loads
     echo -e "\e[36m ... adding pps-gpio to modules for PPS\e[0m";
@@ -177,15 +179,15 @@ configure_ntp() {
     echo -e "\e[36m ... adding \e[35mRequires gpsd.service\e[36m to ntp.service\e[0m";
     sed -i "/After=/a Requires=gpsd.service" /lib/systemd/system/ntp.service > /dev/null 2>&1;
     echo -e "\e[36m ... creating new ntp.conf\e[0m";
-    cat << __EOF__  > /etc/ntp.conf
+    cat << __EOF__  > /etc/ntpsec/ntp.conf
 ##################################################
 #
 # GPS / PPS Disciplined NTP Server @ stratum-1
-#      /etc/ntp.conf
+#      /etc/ntpsec/ntp.conf
 #
 ##################################################
 
-driftfile /var/lib/ntp/ntp.drift
+driftfile /var/lib/ntpsec/ntp.drift
 
 # Statistics will be logged. Comment out next line to disable
 statsdir /var/log/ntpstats/
@@ -311,7 +313,7 @@ restrict ::1
 #disable auth
 #broadcastclient
 #leap file location
-leapfile /var/lib/ntp/leap-seconds.list
+# leapfile /var/lib/ntpsec/leap-seconds.list
 __EOF__
 
     # Create directory for logfiles and let ntp own it
@@ -329,6 +331,8 @@ __EOF__
 configure_update-leap() {
     echo -e "\e[32m - configure_update-leap()\e[0m";
     /usr/bin/logger 'configure_update-leap()' -t 'Stratum1 NTP Server';
+    echo -e "\e[36m ... Getting initial leap-seconds.list from IANA\e[0m";
+    wget https://data.iana.org/time-zones/data/leap-seconds.list -O /var/lib/ntpsec/leap-seconds.list > /dev/null 2>&1;
     echo -e "\e[36m ... Creating update-leap.service unit file\e[0m";
     cat << __EOF__  > /lib/systemd/system/update-leap.service
 # service file running update-leap
@@ -341,8 +345,8 @@ Documentation=man:update-leap
 [Service]
 User=ntp
 Group=ntp
-ExecStart=-/usr/bin/wget -O /var/lib/ntp/leap-seconds.list https://www.ietf.org/timezones/data/leap-seconds.list
-WorkingDirectory=/var/lib/ntp/
+ExecStart=-/usr/sbin/ntpleapfetch -s https://data.iana.org/time-zones/data/leap-seconds.list -f /etc/ntpsec/ntp.conf -l
+WorkingDirectory=/var/lib/ntpsec/
 
 [Install]
 WantedBy=multi-user.target
@@ -443,7 +447,7 @@ configure_motd() {
 ***    -------------------------        ***          
 ***     Raspberry Pi Timeserver         ***
 ***                                     ***
-***     Version 4.00 Nov 2021           ***
+***     Version 5.00 Dec 2023           ***
 ***                                     ***
 ********************||*********************
              (\__/) ||
@@ -510,9 +514,10 @@ configure_dhcp() {
     ## Disable NTP option for dhcp
     echo -e "\e[36m ... Disabling ntp_servers option from dhclient configuration file\e[0m";   
     sed -i -e "s/option ntp_servers/#option ntp_servers/" /etc/dhcpcd.conf > /dev/null 2>&1;
+    sed -i -e "s/IGNORE_DHCP=\"\"/IGNORE_DHCP=\"yes\"/" /etc/default/ntpsec > /dev/null 2>&1;
     ## restart NTPD yet again after cleaning up DHCP
     echo -e "\e[36m ... restarting ntp service after cleaning up DHCP\e[0m";
-    systemctl restart ntp > /dev/null 2>&1
+    systemctl restart ntp.service > /dev/null 2>&1
     echo -e "\e[32m - configure_dhcp() finished\e[0m";
     /usr/bin/logger 'configure_dhcp() finished' -t 'Stratum1 NTP Server';
 }
@@ -594,7 +599,7 @@ __EOF__
 finish_reboot() {
     echo -e "\e[1;31m - Countdown to reboot!\e[0m";
     /usr/bin/logger 'Countdown to reboot!' -t 'Stratum1 NTP Server'
-    secs=30;
+    secs=9;
     echo -e;
     echo -e "\e[1;31m--------------------------------------------\e[0m";
         while [ $secs -gt 0 ]; do
@@ -637,7 +642,7 @@ configure_wifi() {
 create_peerstats_script() {
     echo -e "\e[1;32m - create_peerstats_script()\e[0m";
     /usr/bin/logger 'create_peerstats_script()' -t 'Stratum1 NTP Server'
-    cat << __EOF__  >> /var/lib/ntp/peerstats.sh
+    cat << __EOF__  >> /var/lib/ntpsec/peerstats.sh
 #! /bin/sh
 awk '
      /127\.127\.28\.0/ { sum += $5 * 1000; cnt++; }
@@ -645,7 +650,7 @@ awk '
 ' </var/log/ntpstats/peerstats
 __EOF__
     sync;
-    chmod 755 /var/lib/ntp/peerstats.sh;
+    chmod 755 /var/lib/ntpsec/peerstats.sh;
     echo -e "\e[1;32m - create_peerstats_script() finished\e[0m";
     /usr/bin/logger 'create_peerstats_script() finished' -t 'Stratum1 NTP Server'
 }
@@ -664,7 +669,7 @@ main() {
     echo -e "\e[32m     Starting Installation of NTP Stratum-1 Server\e[0m";
     echo -e "\e[32m-------------------------------------------------------------\e[0m";
     echo -e "\e[36m";
-    echo -e '     _                                       _ _       '    
+    echo -e '     _ _                                     _ _ _     '    
     echo -e '     | |__  ___  ___  ___ _   _ _ __ ___   __| | | __  '
     echo -e '     | `_ \/ __|/ _ \/ __| | | | `__/ _ \ / _` | |/ /  '
     echo -e '     | |_) \__ \  __/ (__| |_| | | |  __/| (_| |   <   '
@@ -699,7 +704,7 @@ main() {
 
     configure_sshd;
 
-    configure_iptables;
+    #configure_iptables;
 
     configure_motd;
 
@@ -713,7 +718,7 @@ main() {
     ## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ## Disable (lock) user pi on the RPi - only do this if you are sure the SSH keys work, or you've effectively shut the door on yourself
     ## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    configure_user_pi;
+    #configure_user_pi;
 
     ## Finish with encouraging message, then reboot
     echo -e "\e[32m - Installation and configuration of Stratum-1 server complete.\e[0m";

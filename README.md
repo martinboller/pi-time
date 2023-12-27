@@ -3,7 +3,7 @@ Raspberry PI Stratum 1 server
 
 # Raspberry Pi Installation script
 
-### Bash script automating the installation of a GPS / PPS Disciplined Stratum-1 Server on the Raspberry Pi 3 or 4 
+### Bash script automating the installation of a GPS / PPS Disciplined Stratum-1 Server on the Raspberry Pi (3), 4, or 5 
 
 ### Design principles:
   - Dedicated to being a Stratum-1 NTP server
@@ -33,9 +33,9 @@ Raspberry PI Stratum 1 server
   - Keeping the original config.txt, only adding include ntpserver.txt
 
 ### Installation
-Prerequisite: A Raspberry PI 3 or 4
+Prerequisite: A Raspberry PI 4 or 5
  - Download the latest Raspberry Pi OS Lite here: https://downloads.raspberrypi.org/raspios_lite_armhf/images/raspios_lite_armhf-2021-11-08/2021-10-30-raspios-bullseye-armhf-lite.zip
- - Write the latest Raspberry Pi OS Lite, which is based on Debian 11 (Bullseye), to a good quality sd-card using dd or whatever tool you prefer
+ - Write the latest Raspberry Pi OS Lite, based on Debian 12 (Bookworm), to a good quality sd-card using rpi-imager, dd or whatever tool you prefer
  - Run prep_sd.sh, enter a new hostname for the pi<sup>1</sup>.
  - Boot the Pi, logon as pi/raspberrypi (user pi will be disabled later)
  - sudo su -

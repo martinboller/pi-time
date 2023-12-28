@@ -23,8 +23,8 @@ configure_serial() {
     echo -e "\e[32m - configure_serial()\e[0m";
     /usr/bin/logger 'configure_serial()' -t 'Stratum1 NTP Server';
     echo -e "\e[36m ... stopping and disabling serial tty, as this will be used for NMEA data\e[0m";
-    systemctl stop serial-getty@ttyAMA0.service > /dev/null 2>&1;
-    systemctl disable serial-getty@ttyAMA0.service > /dev/null 2>&1;
+    systemctl stop serial-getty@$SERIAL_PORT.service > /dev/null 2>&1;
+    systemctl disable serial-getty@$SERIAL_PORT.service > /dev/null 2>&1;
     sed -i -e "s/console=serial0,115200\s//" /boot/firmware/cmdline.txt > /dev/null 2>&1;
     ldconfig;
     echo -e "\e[32m - configure_serial() finished\e[0m";
@@ -55,7 +55,7 @@ configure_timezone() {
     export DEBIAN_FRONTEND=noninteractive;
     echo -e "\e[36m ... Configuring timezone\e[0m";
     rm /etc/localtime > /dev/null 2>&1;
-    echo 'Etc/UTC' > /etc/timezone;
+    echo $TIMEZONE > /etc/timezone;
     dpkg-reconfigure -f noninteractive tzdata > /dev/null 2>&1;
     echo -e "\e[32m - configure_timezone() finished\e[0m";
     /usr/bin/logger 'configure_timezone() finished' -t 'Stratum1 NTP Server';
@@ -96,7 +96,7 @@ configure_gps() {
 ## Stratum1
 START_DAEMON="true"
 GPSD_OPTIONS="-n"
-DEVICES="/dev/ttyAMA0 /dev/pps0"
+DEVICES="/dev/$SERIAL_PORT /dev/pps0"
 USBAUTO="false"
 GPSD_SOCKET="/var/run/gpsd.sock"
 __EOF__
@@ -108,7 +108,7 @@ __EOF__
     cat << __EOF__  > /etc/udev/rules.d/99-gps.rules
 ## Stratum1
 KERNEL=="pps0",SYMLINK+="gpspps0"
-KERNEL=="ttyAMA0", SYMLINK+="gps0"
+KERNEL=="$SERIAL_PORT", SYMLINK+="gps0"
 __EOF__
     echo -e "\e[32m - configure_gps() finished\e[0m";
     /usr/bin/logger 'configure_gps() finished' -t 'Stratum1 NTP Server';
@@ -123,25 +123,25 @@ configure_pps() {
     apt-get -qq -y install pps-tools > /dev/null 2>&1;
     ## create t in boot also for RPI3 or 4
     echo -e "\e[36m ... setting up config.txt for PPS\e[0m";
-#    cat << __EOF__  >> /boot/config.txt
-## Include ntp server specific settings to config.txt using include
-#include ntpserver.txt
-#__EOF__
-
     cat << __EOF__  >> /boot/firmware/config.txt
+## Include ntp server specific settings to config.txt using include
+include ntpserver.txt
+__EOF__
+
+    cat << __EOF__  >> /boot/firmware/ntpserver.txt
 # gps + pps + ntp settings
 # https://github.com/raspberrypi/firmware/tree/master/boot/overlays
 #Name:   pps-gpio
-#Info:   Configures the pps-gpio, the pulse-per-second time signal via GPIO.
-smsc95xx.turbo_mode=N
-dtoverlay=pps-gpio,gpiopin=18
-dtoverlay=pi3-miniuart-bt
+#Info:   Enables uart, configures the pps-gpio, and the pulse-per-second time signal via GPIO.
 enable_uart=1
+smsc95xx.turbo_mode=N
+dtoverlay=pps-gpio,gpiopin=$GPIOPIN
+dtoverlay=$DTOVERLAY
 
 ## Constant CPU Speed kept at 1000 for better precision
-## Normal governor=ondemand so between 600 and 1200 on RPi3 more on 4
-#force_turbo=1
-#arm_freq=1000
+## Normal governor=ondemand so between 600 and 1200 on RPi3 more on 4 & 5
+force_turbo=1
+arm_freq=$ARM_FREQ
 __EOF__
     ## ensure pps-gpio module loads
     echo -e "\e[36m ... adding pps-gpio to modules for PPS\e[0m";
@@ -258,31 +258,12 @@ fudge   127.127.28.2  refid SHM2  stratum 1
 # http://support.ntp.org/bin/view/Servers/
 #
 ## Select 4 to 6 servers  from https://support.ntp.org/bin/view/Servers/StratumOneTimeServers
-## Below are some that work for Northern Europe
-## 
-server	ntp2.sptime.se	iburst
-server	ntp2.fau.de	iburst
-server	clock2.infonet.ee	iburst
-server	rustime01.rus.uni-stuttgart.de	iburst
-server	ntp01.hoberg.ch	iburst
-		
-#server	ntps1-0.eecsit.tu-berlin.de 	iburst
-#server	ntp01.sixtopia.net	iburst
-#server	gbg2.ntp.se 	iburst
-#server	ntp4.sptime.se	iburst
-#server	ntp.bcs2005.net 	iburst
-		
-#server	ptbtime2.ptb.de	iburst
-#server	ntps1-1.eecsit.tu-berlin.de	iburst
-#server	time.antwerpspace.be	iburst
-#server	time.esa.int	iburst
-#server	gbg1.ntp.se	iburst
-		
-#server	ntp.time.nl 	iburst
-#server	ntp1.nl.uu.net	iburst
-#server	ntp.certum.pl	iburst
-#server	ntp1.oma.be	iburst
-#server	ntp01.sixtopia.net 	iburst
+
+server	$NTP_SERVER_1	iburst
+server	$NTP_SERVER_2	iburst
+server	$NTP_SERVER_3	iburst
+server	$NTP_SERVER_4	iburst
+server	$NTP_SERVER_5	iburst
 
 # Access control configuration; see /usr/share/doc/ntp-doc/html/accopt.html for
 # details.  The web page <http://support.ntp.org/bin/view/Support/AccessRestrictions>
@@ -302,24 +283,26 @@ restrict ::1
 
 # Clients from this (example!) subnet have unlimited access, but only if
 # cryptographically authenticated.
-#restrict 192.168.123.0 mask 255.255.255.0 notrust
+#restrict $RESTRICT_NET mask $NET_MASK $TRUST_NET
 
 # If you want to provide time to your local subnet, change the next line.
 # (Again, the address is an example only.)
-#broadcast 192.168.123.255
+#broadcast $BROADCAST_ADDR
 
 # If you want to listen to time broadcasts on your local subnet, de-comment the
 # next lines.  Please do this only if you trust everybody on the network!
 #disable auth
 #broadcastclient
 #leap file location
-# leapfile /var/lib/ntpsec/leap-seconds.list
+leapfile $LEAPFILE_DIR
 __EOF__
 
     # Create directory for logfiles and let ntp own it
     echo -e "\e[36m ... Create directory for logfiles and let ntp own it\e[0m";
-    mkdir -p /var/log/ntpd > /dev/null 2>&1
-    chown ntp:ntp /var/log/ntpd > /dev/null 2>&1
+    mkdir -p /var/log/ntpd > /dev/null 2>&1;
+    mkdir -p /var/log/ntpstats > /dev/null 2>&1;
+    chown ntpsec:ntpsec /var/log/ntpd > /dev/null 2>&1;
+    chown ntpsec:ntpsec /var/log/ntpstats > /dev/null 2>&1;   
     sync;
     ## Restart NTPD
     systemctl daemon-reload > /dev/null 2>&1;
@@ -332,7 +315,8 @@ configure_update-leap() {
     echo -e "\e[32m - configure_update-leap()\e[0m";
     /usr/bin/logger 'configure_update-leap()' -t 'Stratum1 NTP Server';
     echo -e "\e[36m ... Getting initial leap-seconds.list from IANA\e[0m";
-    wget https://data.iana.org/time-zones/data/leap-seconds.list -O /var/lib/ntpsec/leap-seconds.list > /dev/null 2>&1;
+    wget $LEAPFILE_URL -O /var/lib/ntpsec/leap-seconds.list > /dev/null 2>&1;
+    chown -R ntpsec:ntpsec /var/lib/ntpsec/leap-seconds.list > /dev/null 2>&1;
     echo -e "\e[36m ... Creating update-leap.service unit file\e[0m";
     cat << __EOF__  > /lib/systemd/system/update-leap.service
 # service file running update-leap
@@ -343,9 +327,9 @@ Description=service file running update-leap
 Documentation=man:update-leap
 
 [Service]
-User=ntp
-Group=ntp
-ExecStart=-/usr/sbin/ntpleapfetch -s https://data.iana.org/time-zones/data/leap-seconds.list -f /etc/ntpsec/ntp.conf -l
+User=ntpsec
+Group=ntpsec
+ExecStart=-/usr/sbin/ntpleapfetch -s $LEAPFILE_URL -f /etc/ntpsec/ntp.conf -l
 WorkingDirectory=/var/lib/ntpsec/
 
 [Install]
@@ -374,6 +358,7 @@ __EOF__
 
     sync;
     echo -e "\e[36m ... downloading leap file and making sure timer and service will run\e[0m";
+    chown -R ntpsec:ntpsec /var/lib/ntpsec > /dev/null 2>&1;
     systemctl daemon-reload > /dev/null 2>&1;
     echo -e "\e[36m ... enabling update-leap timer and service\e[0m";
     systemctl enable update-leap.timer > /dev/null 2>&1;
@@ -439,20 +424,22 @@ configure_motd() {
     echo -e "\e[32m - configure_motd()\e[0m";
     /usr/bin/logger 'configure_motd()' -t 'Stratum1 NTP Server';
     echo -e "\e[36m ... Creating motd file\e[0m";
-    cat << __EOF__  >> /etc/motd
+    BUILD_DATE="$(date --iso-8601)"
+    cat << __EOF__  > /etc/motd
 
-*******************************************
-***                                     ***
-***       Stratum 1 NTP Server          ***
-***    -------------------------        ***          
-***     Raspberry Pi Timeserver         ***
-***                                     ***
-***     Version 5.00 Dec 2023           ***
-***                                     ***
-********************||*********************
-             (\__/) ||
-             (•ㅅ•) ||
-            /  　  づ
+-----------------------------------------------
+PI-TIME, Stratum-1 NTP Server
+Version:        $PITIME_VERSION
+Version date:   $ENV_VERSION
+Built on:       $BUILD_DATE
+-----------------------------------------------
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
 __EOF__
     
     sync;
@@ -541,8 +528,8 @@ install_hwclock() {
     update-rc.d hwclock.sh enable > /dev/null 2>&1
    
     #add to config.txt dtoverlay=i2c-rtc,pcf8563 - change to specifc RTC chip
-    echo -e "\e[36m ... Adding dtoverlay to config.txt via included ntpserver.txt\e[0m";
     cat << __EOF__  >> /boot/ntpserver.txt
+    echo -e "\e[36m ... Adding dtoverlay to config.txt via included ntpserver.txt\e[0m";
 dtoverlay=i2c-rtc,pcf8563
 __EOF__
     echo -e "\e[36m ... Modifying hwclock-set\e[0m";
@@ -599,7 +586,7 @@ __EOF__
 finish_reboot() {
     echo -e "\e[1;31m - Countdown to reboot!\e[0m";
     /usr/bin/logger 'Countdown to reboot!' -t 'Stratum1 NTP Server'
-    secs=9;
+    secs=$REBOOT_COUNTDOWN;
     echo -e;
     echo -e "\e[1;31m--------------------------------------------\e[0m";
         while [ $secs -gt 0 ]; do
@@ -620,10 +607,10 @@ configure_user_pi() {
     /usr/bin/logger 'configure_user_pi()' -t 'Stratum1 NTP Server'
     echo -e "\e[36m ... generating long random password\e[0m";
     randompw=$(strings /dev/urandom | grep -o '[[:alnum:]]' | head -n 64 | tr -d '\n');
-    echo -e "\e[36m ... changing password for user pi\e[0m";
-    echo pi:$randompw | chpasswd > /dev/null 2>&1;
+    echo -e "\e[36m ... changing password for user $RPI_USER\e[0m";
+    echo $RPI_USER:$randompw | chpasswd > /dev/null 2>&1;
     echo -e "\e[36m ... locking user pi\e[0m";
-    usermod pi --lock
+    usermod $RPI_USER --lock
     /usr/bin/logger 'configure_user_pi() finished' -t 'Stratum1 NTP Server'
     echo -e "\e[1;32m - configure_user_pi() finished\e[0m";
 }
@@ -655,16 +642,28 @@ __EOF__
     /usr/bin/logger 'create_peerstats_script() finished' -t 'Stratum1 NTP Server'
 }
 
+install_ntpviz() {
+    echo -e "\e[32m - Install_ntpviz()\e[0m";
+    /usr/bin/logger 'install_ntpviz()' -t 'Stratum1 NTP Server';
+    apt-get -qq -y install gnuplot-nox ntpsec-ntpviz > /dev/null 2>&1;
+    echo -e "\e[32m - Install_ntpviz() finished\e[0m";
+    /usr/bin/logger 'install_ntpviz() finished' -t 'Stratum1 NTP Server';
+}
+
+configure_apparmor() {
+    echo -e "\e[32m - configure_apparmor()\e[0m";
+    /usr/bin/logger 'configure_apparmor()' -t 'Stratum1 NTP Server';
+    echo '@{NTPD_DEVICE}="/dev/$SERIAL_PORT" "/dev/pps0"' | sudo tee -a /etc/apparmor.d/tunables/ntpd > /dev/null 2>&1;
+    echo -e "\e[32m - configure_apparmor() finished\e[0m";
+    /usr/bin/logger 'configure_apparmor() finished' -t 'Stratum1 NTP Server';
+}
+
 #################################################################################################################
 ## Main Routine                                                                                                 #
 #################################################################################################################
 main() {
-    # SSH Public Key - Remember to change this, or you won't be able to login after running the script.
-    # Consider not running configure_user_pi until everything works.
-    myPublicSSHKey="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIHJYsxpawSLfmIAZTPWdWe2xLAH758JjNs5/Z2pPWYm"
-    # Configure WiFi
-    REGULATORY_COUNTRY="DK"
-
+    # SSH Public Key and WiFi settings - Remember to change settings in the .env file, or you won't be able to login after running the script.
+    
     echo -e "\e[32m-------------------------------------------------------------\e[0m";
     echo -e "\e[32m     Starting Installation of NTP Stratum-1 Server\e[0m";
     echo -e "\e[32m-------------------------------------------------------------\e[0m";
@@ -676,6 +675,13 @@ main() {
     echo -e '     |_.__/|___/\___|\___|\__,_|_|  \___(_)__,_|_|\_\  '
     echo -e "\e[0m";
     
+    # Directory of script
+    export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+    
+    # Configure environment from .env file
+    set -a; source $SCRIPT_DIR/.env;
+    echo -e "\e[1;36m....env file version $ENV_VERSION used\e[0m"
+
     configure_serial;
 
     configure_locale;
@@ -683,6 +689,16 @@ main() {
     configure_timezone;
 
     install_updates;
+
+    # Ntpviz writes a lot to "disk" so if on an SD-Card don't (or move to RAM)
+    if [ "$NTPVIZ_INSTALL" == "Yes" ]; then
+        # Installling ntpviz
+        echo -e "\e[1;36m....Installing ntpviz as configured in .env by setting NTPVIZ_INSTALL to $NTPVIZ_INSTALL\e[0m"
+        install_ntpviz;
+    else
+        echo -e "\e[1;36m....Not installing ntpviz as configured in .env by setting NTPVIZ_INSTALL to $NTPVIZ_INSTALL\e[0m"
+        /usr/bin/logger 'ntpviz not installed by request' -t 'Stratum1 NTP Server';
+    fi
 
     configure_gps;
 
@@ -699,6 +715,8 @@ main() {
     configure_dhcp;
 
     configure_update-leap;
+
+    configure_apparmor;
 
     install_ssh_keys;
 
@@ -718,13 +736,15 @@ main() {
     ## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ## Disable (lock) user pi on the RPi - only do this if you are sure the SSH keys work, or you've effectively shut the door on yourself
     ## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    #configure_user_pi;
+    
+    configure_user_pi;
 
     ## Finish with encouraging message, then reboot
     echo -e "\e[32m - Installation and configuration of Stratum-1 server complete.\e[0m";
     echo -e "\e[1;31m - After reboot, please verify GPSD and NTPD operation\e[0m";
     echo -e;
     echo -e "\e[1;32mmain()\e[0m";
+    
     finish_reboot;
 }
 

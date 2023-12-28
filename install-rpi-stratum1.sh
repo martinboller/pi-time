@@ -428,10 +428,11 @@ configure_motd() {
     cat << __EOF__  > /etc/motd
 
 -----------------------------------------------
-PI-TIME, Stratum-1 NTP Server
+π-TIME:         Stratum-1 NTP Server
 Version:        $PITIME_VERSION
 Version date:   $ENV_VERSION
 Built on:       $BUILD_DATE
+Built by:       $BUILT_BY
 -----------------------------------------------
 
 The programs included with the Debian GNU/Linux system are free software;
@@ -602,17 +603,17 @@ finish_reboot() {
     reboot;
 }
 
-configure_user_pi() {
-    echo -e "\e[1;32m - configure_user_pi()\e[0m";
-    /usr/bin/logger 'configure_user_pi()' -t 'Stratum1 NTP Server'
+disable_user_pi() {
+    echo -e "\e[1;32m - disable_user_pi()\e[0m";
+    /usr/bin/logger 'disable_user_pi()' -t 'Stratum1 NTP Server'
     echo -e "\e[36m ... generating long random password\e[0m";
     randompw=$(strings /dev/urandom | grep -o '[[:alnum:]]' | head -n 64 | tr -d '\n');
     echo -e "\e[36m ... changing password for user $RPI_USER\e[0m";
     echo $RPI_USER:$randompw | chpasswd > /dev/null 2>&1;
     echo -e "\e[36m ... locking user pi\e[0m";
     usermod $RPI_USER --lock
-    /usr/bin/logger 'configure_user_pi() finished' -t 'Stratum1 NTP Server'
-    echo -e "\e[1;32m - configure_user_pi() finished\e[0m";
+    /usr/bin/logger 'disable_user_pi() finished' -t 'Stratum1 NTP Server'
+    echo -e "\e[1;32m - disable_user_pi() finished\e[0m";
 }
 
 configure_wifi() {
@@ -662,17 +663,25 @@ configure_apparmor() {
 ## Main Routine                                                                                                 #
 #################################################################################################################
 main() {
-    # SSH Public Key and WiFi settings - Remember to change settings in the .env file, or you won't be able to login after running the script.
-    
-    echo -e "\e[32m-------------------------------------------------------------\e[0m";
-    echo -e "\e[32m     Starting Installation of NTP Stratum-1 Server\e[0m";
-    echo -e "\e[32m-------------------------------------------------------------\e[0m";
+    # Remember to change settings in the .env file, or you won't be able to login after running the script.
+ 
+    echo -e "\e[33m";
+    echo -e ' _   _                 ___           _        _ _ _              '
+    echo -e '| \ | | _____      __ |_ _|_ __  ___| |_ __ _| | (_)_ __   __ _  '
+    echo -e '|  \| |/ _ \ \ /\ / /  | || ´_ \/ __| __/ _` | | | | ´_ \ / _` | '
+    echo -e '| |\  | (_) \ V  V /   | || | | \__ \ || (_| | | | | | | | (_| | '
+    echo -e '|_| \_|\___/ \_/\_/   |___|_| |_|___/\__\__,_|_|_|_|_| |_|\__, | '
+    echo -e '                                                          |___/  '
     echo -e "\e[36m";
-    echo -e '     _ _                                     _ _ _     '    
-    echo -e '     | |__  ___  ___  ___ _   _ _ __ ___   __| | | __  '
-    echo -e '     | `_ \/ __|/ _ \/ __| | | | `__/ _ \ / _` | |/ /  '
-    echo -e '     | |_) \__ \  __/ (__| |_| | | |  __/| (_| |   <   '
-    echo -e '     |_.__/|___/\___|\___|\__,_|_|  \___(_)__,_|_|\_\  '
+    echo -e '    ____ _____ ____      _  _____ _   _ __  __       _  '
+    echo -e '   / ___|_   _|  _ \    / \|_   _| | | |  \/  |     / | '
+    echo -e '   \___ \ | | | |_) |  / _ \ | | | | | | |\/| |_____| | '
+    echo -e '    ___) || | |  _ <  / ___ \| | | |_| | |  | |_____| | ' 
+    echo -e '   |____/ |_|_|_|_\_\/_/___\_\_|  \___/|_|  |_|     |_| '
+    echo -e '   | \ | |_   _|  _ \  / ___|  ___ _ ____   _____ _ __  '
+    echo -e '   |  \| | | | | |_) | \___ \ / _ \ ´__\ \ / / _ \ ´_´| '
+    echo -e '   | |\  | | | |  __/   ___) |  __/ |   \ V /  __/ |    '
+    echo -e '   |_| \_| |_| |_|     |____/ \___|_|    \_/ \___|_|    '
     echo -e "\e[0m";
     
     # Directory of script
@@ -718,10 +727,6 @@ main() {
 
     configure_apparmor;
 
-    install_ssh_keys;
-
-    configure_sshd;
-
     #configure_iptables;
 
     configure_motd;
@@ -732,18 +737,23 @@ main() {
 
     #if RTC HWCLOCK installed, uncomment below
     #install_hwclock;
-
-    ## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ## Disable (lock) user pi on the RPi - only do this if you are sure the SSH keys work, or you've effectively shut the door on yourself
-    ## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
-    configure_user_pi;
+    if [ "$DISABLE_RPI_USER" == "Yes" ]; then
+        # Disabling user
+        echo -e "\e[1;36m.... Disabling user $RPI_USER\e[0m"
+        disable_user_pi;
+        install_ssh_keys;
+        configure_sshd;
+    else
+        echo -e "\e[1;36m.... Not disabling user $RPI_USER for later use\e[0m"
+        /usr/bin/logger 'User not disabled' -t 'Stratum1 NTP Server';
+    fi
 
     ## Finish with encouraging message, then reboot
     echo -e "\e[32m - Installation and configuration of Stratum-1 server complete.\e[0m";
     echo -e "\e[1;31m - After reboot, please verify GPSD and NTPD operation\e[0m";
     echo -e;
-    echo -e "\e[1;32mmain()\e[0m";
+    echo -e "\e[1;32mmain() finished\e[0m";
     
     finish_reboot;
 }

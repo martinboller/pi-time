@@ -15,11 +15,15 @@ Raspberry PI Stratum 1 server
   - May work on a Raspberry Pi 2, haven't tried.
 
 ### Latest changes 
+#### 2023-12-28 - version 5.01
+  - Settings in .env-file
+  - ntpstats and logging corrected
+  - ntpleapfetch usage in update-leap.service
+
 #### 2023-12-27 - Raspberry Pi OS (64-bit) Lite (Debian 12, codename: Bookworm)
   - Version 5 for Raspberry PI OS Lite (64 bit) - Debian 12 (Bookworm)
   - This script will only work with ntpsec and has only been tested on the Debian 12 (Bookworm) version of RaspberryPi OS
 
-### Latest changes 
 #### 2021-12-02 - Raspberry Pi OS (64-bit) Lite
   - Tested to work with Raspberry Pi OS (64-bit) Lite
 
@@ -33,17 +37,19 @@ Raspberry PI Stratum 1 server
   - Keeping the original config.txt, only adding include ntpserver.txt
 
 ### Installation
-Prerequisite: A Raspberry PI 4 or 5
+Prerequisite: A Raspberry PI 4 or 5 and an SD-CARD
  - Download the latest Raspberry Pi OS Lite here: https://downloads.raspberrypi.org/raspios_lite_armhf/images/raspios_lite_armhf-2021-11-08/2021-10-30-raspios-bullseye-armhf-lite.zip
- - Write the latest Raspberry Pi OS Lite, based on Debian 12 (Bookworm), to a good quality sd-card using rpi-imager, dd or whatever tool you prefer
+ - Write the latest Raspberry Pi OS Lite, based on Debian 12 (Bookworm), to a good quality sd-card using rpi-imager, dd or whatever tool you prefer. Using rpi-imager is the easiest option, allowing you to create credentials for initial logon and set hostname
+ - Configure the .env to your wishes, do NOT forget to change the SSH Public Key and whether or not to disable the original user (which used to be "pi")
  - Run prep_sd.sh, enter a new hostname for the pi<sup>1</sup>.
- - Boot the Pi, logon as pi/raspberrypi (user pi will be disabled later)
+ - Boot the Pi, logon as the credentials created with rpi-imager (this use will be disabled later, if correctly named in .env, I use "ntp" as user)
  - sudo su -
  - run ./install-rpi-stratum1.sh
  - Watch install progress on the tty, and from another SSH session, run *tail -fn1000 /var/log/syslog | grep 'Stratum1 NTP Server'*
  - After reboot the Pi should now provide good time, however give it time :) lots of time to achieve good precision
+ - Login with root (if you added your public ssh key to .env). If not login with the user you created earlier with rpi-imager.
 
-<sup>1</sup> prep_sd.sh prepares the SD-Card enabling SSH, copies the install script, and changes hostname on the sd-card
+<sup>1</sup> prep_sd.sh prepares the SD-Card enabling SSH, copies the install script, and changes hostname on the sd-card.
 
 ### Hardware
 It's easy to find GPS breakout boards for Arduino or Raspberry Pi's on ebay, amazon, and other semi-dubious marketplaces.
